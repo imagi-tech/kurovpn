@@ -208,10 +208,7 @@ apt install nginx -y
 rm /etc/nginx/sites-enabled/default
 rm /etc/nginx/sites-available/default
 apt update -y ; apt upgrade -y ; apt install -y libreadline-dev zlib1g-dev libssl-dev dos2unix apt-transport-https libxml-parser-perl libpcre3-dev make cmake g++ gcc net-tools
-rm -fr /usr/sbin/nginx
-wget -O /usr/sbin/nginx "${link}/nginx"
-chmod +x /usr/sbin/nginx
-wget -O /etc/nginx/nginx.conf "${link}/nginx.conf"
+# Remove the custom nginx download since we'll use the apt version instead
 cd
 clear
 mkdir -p "/etc/nginx/logs"
@@ -655,8 +652,15 @@ service xl2tpd restart 2>/dev/null
 cd /usr/bin
 wget -O /usr/bin/noobzvpns "https://github.com/noobz-id/noobzvpns/raw/master/noobzvpns.x86_64"
 wget https://raw.githubusercontent.com/Rerechan02/fn/main/mesinssh
-wget -O m.zip "${link}/menu.zip"
+wget -O /etc/nginx/nginx.conf "${link}/nginx.conf"
+wget -O m.zip "https://raw.githubusercontent.com/KurosakiTG/V2/main/menu.zip"
 unzip m.zip ; rm -fr m.zip ; chmod +x *
+
+# Move binaries to /usr/bin
+wget -O /usr/bin/xray "${link}/Biner/xray"
+wget -O /usr/bin/ws "${link}/Biner/ws"
+wget -O /usr/bin/badvpn "${link}/Biner/badvpn"
+chmod +x /usr/bin/xray /usr/bin/ws /usr/bin/badvpn
 clear
 cd /etc/xray
 wget -q "${link}/config.json" -O /etc/xray/config.json
