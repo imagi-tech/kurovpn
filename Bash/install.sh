@@ -44,33 +44,18 @@ clear
 # // Melakukan Pembuatan Directory
 clear
 mkdir -p /funny
-sleep 1
 mkdir -p /rere
-sleep 1
 mkdir -p /etc/slowdns
-sleep 1
 mkdir -p /etc/xray
-sleep 1
 mkdir -p /etc/websocket
-sleep 1
-mkdir -p /etc/xray
-sleep 1
 mkdir -p /etc/funny
-sleep 1
 mkdir -p /etc/funnt/limit
-sleep 1
 mkdir -p /etc/funny/limit/xray
-sleep 1
 mkdir -p /etc/funny/limit/xray/ip
-sleep 1
 mkdir -p /etc/funny/limit/xray/quota
-sleep 1
 mkdir -p /etc/funny/limit/ssh
-sleep 1
 mkdir -p /etc/funny/limit/ssh/ip
-sleep 1
 mkdir -p /etc/v2ray
-sleep 1
 mkdir -p /var
 mkdir -p /var/lib
 mkdir -p /var/lib/crot
