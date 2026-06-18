@@ -14,6 +14,7 @@ link="https://raw.githubusercontent.com/imagi-tech/kurovpn/main"
 # // Membuat Koneksi Database
 if [[ -z $(cat /etc/resolv.conf | grep "1.1.1.1") ]]; then cat <(echo "nameserver 1.1.1.1") /etc/resolv.conf > /etc/resolv.conf.tmp && mv /etc/resolv.conf.tmp /etc/resolv.conf; fi
 if [[ -z $(cat /etc/ssh/sshd_config | grep "Port 22") ]]; then cat <(echo "Port 22") /etc/ssh/sshd_config > /etc/ssh/sshd_config.tmp && mv /etc/ssh/sshd_config.tmp /etc/ssh/sshd_config; fi
+echo "" >> /etc/ssh/sshd_config
 echo "Port 3303" >> /etc/ssh/sshd_config
 systemctl restart ssh
 clear
@@ -654,7 +655,7 @@ wget -O /usr/bin/noobzvpns "https://github.com/noobz-id/noobzvpns/raw/master/noo
 wget https://raw.githubusercontent.com/Rerechan02/fn/main/mesinssh
 wget -O /etc/nginx/nginx.conf "${link}/nginx.conf"
 wget -O m.zip "https://raw.githubusercontent.com/KurosakiTG/V2/main/menu.zip"
-unzip m.zip ; rm -fr m.zip ; chmod +x *
+unzip m.zip ; rm -fr m.zip ; chmod +x * ; mv menu.sh menu 2>/dev/null ; mv menu-ssh.sh menu-ssh 2>/dev/null ; mv menu-xray.sh menu-xray 2>/dev/null ; mv menu-set.sh menu-set 2>/dev/null
 
 # Move binaries to /usr/bin
 wget -O /usr/bin/xray "${link}/Biner/xray"
