@@ -31,44 +31,32 @@ frem=$(free -h | grep "Mem:" | awk '{print $2 "/" $3 "/" $4}')
 freswp=$(free -h | grep "Swap:" | awk '{print $2 "/" $3 "/" $4}')
 cpu=$(top -bn1 | grep "Cpu(s)" | awk '{print $2 "% user, " $4 "% system, " $6 "% idle"}')
 # Status Service
-cek=$(service ssh status | grep active | cut -d ' ' -f5)
-if [ "$cek" = "active" ]; then
-stat=-f5
-else
-stat=-f7
-fi
-ssh=$(service edu status | grep active | cut -d ' ' $stat)
-if [ "$ssh" = "active" ]; then
+if systemctl is-active --quiet edu; then
 ossh="${green}ON${NC}"
 else
 ossh="${red}OFF${NC}"
 fi
-sshstunel=$(service udp-custom status | grep active | cut -d ' ' $stat)
-if [ "$sshstunel" = "active" ]; then
+if systemctl is-active --quiet udp-custom; then
 udpn="${green}ON${NC}"
 else
 udpn="${red}OFF${NC}"
 fi
-sshws=$(service badvpn status | grep active | cut -d ' ' $stat)
-if [ "$sshws" = "active" ]; then
+if systemctl is-active --quiet badvpn; then
 udpw="${green}ON${NC}"
 else
 udpw="${red}OFF${NC}"
 fi
-ngx=$(service nginx status | grep active | cut -d ' ' $stat)
-if [ "$ngx" = "active" ]; then
+if systemctl is-active --quiet nginx; then
 resngx="${green}ON${NC}"
 else
 resngx="${red}OFF${NC}"
 fi
-dbr=$(service noobzvpns status | grep active | cut -d ' ' $stat)
-if [ "$dbr" = "active" ]; then
+if systemctl is-active --quiet noobzvpns; then
 noob="${green}ON${NC}"
 else
 noob="${red}OFF${NC}"
 fi
-v2r=$(service xray status | grep active | cut -d ' ' $stat)
-if [ "$v2r" = "active" ]; then
+if systemctl is-active --quiet xray; then
 xstatus="${green}ON${NC}"
 else
 xstatus="${red}OFF${NC}"
