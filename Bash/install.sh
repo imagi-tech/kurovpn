@@ -38,6 +38,7 @@ apt install cron -y
 apt install figlet -y
 apt install zip unzip -y
 apt install jq -y
+apt-get install -y ruby dos2unix lsb-release
 clear
 
 # // Melakukan Pembuatan Directory
