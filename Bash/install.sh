@@ -13,9 +13,13 @@ link="https://raw.githubusercontent.com/imagi-tech/kurovpn/main"
 
 # // Membuat Koneksi Database
 if [[ -z $(cat /etc/resolv.conf | grep "1.1.1.1") ]]; then cat <(echo "nameserver 1.1.1.1") /etc/resolv.conf > /etc/resolv.conf.tmp && mv /etc/resolv.conf.tmp /etc/resolv.conf; fi
-if [[ -z $(cat /etc/ssh/sshd_config | grep "Port 22") ]]; then cat <(echo "Port 22") /etc/ssh/sshd_config > /etc/ssh/sshd_config.tmp && mv /etc/ssh/sshd_config.tmp /etc/ssh/sshd_config; fi
-echo "" >> /etc/ssh/sshd_config
-echo "Port 3303" >> /etc/ssh/sshd_config
+sed -i 's/#Port 22/Port 22/g' /etc/ssh/sshd_config
+if ! grep -q "^Port 22$" /etc/ssh/sshd_config; then
+    echo "Port 22" >> /etc/ssh/sshd_config
+fi
+if ! grep -q "^Port 3303$" /etc/ssh/sshd_config; then
+    echo "Port 3303" >> /etc/ssh/sshd_config
+fi
 systemctl restart ssh
 clear
 
