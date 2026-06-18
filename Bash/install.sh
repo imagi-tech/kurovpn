@@ -654,8 +654,8 @@ cd /usr/bin
 wget -O /usr/bin/noobzvpns "https://github.com/noobz-id/noobzvpns/raw/master/noobzvpns.x86_64"
 wget https://raw.githubusercontent.com/Rerechan02/fn/main/mesinssh
 wget -O /etc/nginx/nginx.conf "${link}/nginx.conf"
-wget -O m.zip "https://raw.githubusercontent.com/KurosakiTG/V2/main/menu.zip"
-unzip m.zip ; rm -fr m.zip ; chmod +x * ; mv menu.sh menu 2>/dev/null ; mv menu-ssh.sh menu-ssh 2>/dev/null ; mv menu-xray.sh menu-xray 2>/dev/null ; mv menu-set.sh menu-set 2>/dev/null
+wget -O /usr/bin/menu "https://raw.githubusercontent.com/imagi-tech/kurovpn/main/Bash/menu.sh" && wget -O /usr/bin/menu-ssh "https://raw.githubusercontent.com/imagi-tech/kurovpn/main/Bash/menu-ssh.sh" && wget -O /usr/bin/menu-xray "https://raw.githubusercontent.com/imagi-tech/kurovpn/main/Bash/menu-xray.sh" && wget -O /usr/bin/menu-set "https://raw.githubusercontent.com/imagi-tech/kurovpn/main/Bash/menu-set.sh" && chmod +x /usr/bin/menu*
+
 
 # Move binaries to /usr/bin
 wget -O /usr/bin/xray "${link}/Biner/xray"
