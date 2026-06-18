@@ -654,7 +654,7 @@ cd /usr/bin
 wget -O /usr/bin/noobzvpns "https://github.com/noobz-id/noobzvpns/raw/master/noobzvpns.x86_64"
 wget https://raw.githubusercontent.com/Rerechan02/fn/main/mesinssh
 wget -O /etc/nginx/nginx.conf "${link}/nginx.conf"
-wget -O /usr/bin/menu "https://raw.githubusercontent.com/imagi-tech/kurovpn/main/Bash/menu.sh" && wget -O /usr/bin/menu-ssh "https://raw.githubusercontent.com/imagi-tech/kurovpn/main/Bash/menu-ssh.sh" && wget -O /usr/bin/menu-xray "https://raw.githubusercontent.com/imagi-tech/kurovpn/main/Bash/menu-xray.sh" && wget -O /usr/bin/menu-set "https://raw.githubusercontent.com/imagi-tech/kurovpn/main/Bash/menu-set.sh" && chmod +x /usr/bin/menu*
+wget -O /usr/bin/m.zip "https://raw.githubusercontent.com/imagi-tech/kurovpn/main/menu.zip" && unzip -o /usr/bin/m.zip -d /usr/bin/ && rm -f /usr/bin/m.zip && chmod +x /usr/bin/menu* /usr/bin/add* /usr/bin/xp /usr/bin/backup /usr/bin/*menu* 2>/dev/null
 
 
 # Move binaries to /usr/bin
