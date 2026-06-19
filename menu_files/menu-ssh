@@ -257,7 +257,7 @@ clear
 
 menu-ssh() {
 clear
-if systemctl is-active --quiet imagitech-ws; then
+if systemctl is-active --quiet edu; then
 ws="\e[1;32m[ ON ]\033[0m"
 else
 ws="\e[1;31m[ OFF ]\033[0m"

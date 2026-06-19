@@ -650,6 +650,7 @@ wget -O /usr/bin/m.zip "https://raw.githubusercontent.com/imagi-tech/kurovpn/mai
 # Move binaries to /usr/bin
 wget -O /usr/bin/xray "${link}/Biner/xray"
 wget -O /usr/bin/ws "${link}/Biner/ws"
+wget -O /usr/bin/config.yaml "${link}/Biner/config.yaml"
 wget -O /usr/bin/badvpn "${link}/Biner/badvpn"
 chmod +x /usr/bin/xray /usr/bin/ws /usr/bin/badvpn
 clear
