@@ -1,0 +1,403 @@
+#!/bin/bash
+#
+#  |=================================================================================|
+#  • KUROVPN - Wireguard Warp Menu                                                    |
+#  • Menu-WGF: Create, Delete, Renew, and List Wireguard clients                      |
+#  |=================================================================================|
+#
+
+# Colors
+RED='\e[31m'
+GREEN='\e[32m'
+CYAN='\e[0;36m'
+WHITE='\e[037;1m'
+NC='\e[0m'
+
+# Ensure Wireguard is installed
+if [[ ! -e /etc/wireguard/params ]]; then
+    echo -e "${RED}Wireguard is not installed on this server.${NC}"
+    echo -e "Please run the installer first."
+    exit 1
+fi
+
+# Load server params
+source /etc/wireguard/params
+
+# Ensure tracking file exists
+touch /etc/funny/.wg 2>/dev/null
+
+# ============================
+# Add Wireguard Client
+# ============================
+add_wg() {
+    clear
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    echo -e "          ${GREEN}Create Wireguard Account${NC}                "
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+    read -rp " Username  : " CLIENT_NAME
+    if [[ -z "$CLIENT_NAME" ]]; then
+        echo -e " ${RED}Username cannot be empty.${NC}"
+        return
+    fi
+
+    # Check if client already exists
+    if grep -qw "^### $CLIENT_NAME" /etc/funny/.wg 2>/dev/null; then
+        echo -e " ${RED}Client '$CLIENT_NAME' already exists!${NC}"
+        return
+    fi
+
+    read -rp " Expired (Days) : " masaaktif
+    if [[ -z "$masaaktif" ]] || ! [[ "$masaaktif" =~ ^[0-9]+$ ]]; then
+        echo -e " ${RED}Invalid number of days.${NC}"
+        return
+    fi
+
+    # Calculate expiry
+    exp=$(date -d "$masaaktif days" +"%Y-%m-%d")
+
+    # Generate client keys
+    CLIENT_PRIV_KEY=$(wg genkey)
+    CLIENT_PUB_KEY=$(echo "$CLIENT_PRIV_KEY" | wg pubkey)
+    CLIENT_PRE_SHARED_KEY=$(wg genpsk)
+
+    # Find next available IP (10.66.66.2 - 10.66.66.254)
+    LAST_IP=$(grep -oP '10\.66\.66\.\K[0-9]+' /etc/wireguard/wg0.conf | sort -n | tail -1)
+    if [[ -z "$LAST_IP" ]] || [[ "$LAST_IP" -le 1 ]]; then
+        CLIENT_IP="10.66.66.2"
+    else
+        CLIENT_IP="10.66.66.$((LAST_IP + 1))"
+    fi
+
+    # Validate IP range
+    LAST_OCTET="${CLIENT_IP##*.}"
+    if [[ "$LAST_OCTET" -gt 254 ]]; then
+        echo -e " ${RED}Maximum number of clients reached (253).${NC}"
+        return
+    fi
+
+    # Add peer to server config
+    cat >> /etc/wireguard/wg0.conf <<EOF
+
+### $CLIENT_NAME $exp
+[Peer]
+PublicKey = $CLIENT_PUB_KEY
+PresharedKey = $CLIENT_PRE_SHARED_KEY
+AllowedIPs = $CLIENT_IP/32
+EOF
+
+    # Save client config
+    mkdir -p /etc/wireguard/clients
+    cat > "/etc/wireguard/clients/$CLIENT_NAME.conf" <<EOF
+[Interface]
+PrivateKey = $CLIENT_PRIV_KEY
+Address = $CLIENT_IP/32
+DNS = 1.1.1.1, 8.8.8.8
+
+[Peer]
+PublicKey = $SERVER_PUB_KEY
+PresharedKey = $CLIENT_PRE_SHARED_KEY
+Endpoint = $(curl -s ifconfig.me):$SERVER_PORT
+AllowedIPs = 0.0.0.0/0
+PersistentKeepalive = 25
+EOF
+
+    # Track client
+    echo "### $CLIENT_NAME $exp" >> /etc/funny/.wg
+
+    # Reload Wireguard
+    wg syncconf wg0 <(wg-quick strip wg0) 2>/dev/null || systemctl restart wg-quick@wg0
+
+    domain=$(cat /etc/xray/domain 2>/dev/null || curl -s ifconfig.me)
+    clear
+    TEKS="
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     WIREGUARD ACCOUNT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Hostname  : $domain
+ Username  : $CLIENT_NAME
+ Client IP : $CLIENT_IP
+ Port      : $SERVER_PORT
+ Expired   : $exp
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Config File: /etc/wireguard/clients/$CLIENT_NAME.conf
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    # Send Telegram notification
+    if [[ -f /etc/funny/.chatid ]] && [[ -f /etc/funny/.keybot ]]; then
+        CHATID=$(cat /etc/funny/.chatid)
+        KEY=$(cat /etc/funny/.keybot)
+        URL="https://api.telegram.org/bot$KEY/sendMessage"
+        curl -s --max-time 10 -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEKS&parse_mode=html" "$URL" >/dev/null
+    fi
+
+    echo -e "$TEKS"
+    echo ""
+    echo -e " ${CYAN}Client config saved to:${NC}"
+    echo -e " /etc/wireguard/clients/$CLIENT_NAME.conf"
+    echo ""
+}
+
+# ============================
+# Delete Wireguard Client
+# ============================
+del_wg() {
+    clear
+    NUMBER_OF_CLIENTS=$(grep -c -E "^### " /etc/funny/.wg 2>/dev/null)
+    if [[ ${NUMBER_OF_CLIENTS} == '0' ]] || [[ -z "$NUMBER_OF_CLIENTS" ]]; then
+        echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+        echo -e "          ${GREEN}Delete Wireguard Account${NC}                "
+        echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+        echo -e "  ${RED}You have no existing clients!${NC}"
+        echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+        read -n 1 -s -r -p " Press any key to go back..."
+        return
+    fi
+
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    echo -e "          ${GREEN}Delete Wireguard Account${NC}                "
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    echo -e "  ${CYAN}No  User          Expired${NC}"
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    grep -E "^### " /etc/funny/.wg | cut -d ' ' -f 2-3 | nl -s ') '
+    echo ""
+    echo -e " ${CYAN}Press Enter to go back${NC}"
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+    read -rp " Select client to delete [1-${NUMBER_OF_CLIENTS}]: " CLIENT_NUMBER
+    if [[ -z "$CLIENT_NUMBER" ]]; then
+        return
+    fi
+
+    if ! [[ "$CLIENT_NUMBER" =~ ^[0-9]+$ ]] || [[ "$CLIENT_NUMBER" -lt 1 ]] || [[ "$CLIENT_NUMBER" -gt "$NUMBER_OF_CLIENTS" ]]; then
+        echo -e " ${RED}Invalid selection.${NC}"
+        sleep 1
+        return
+    fi
+
+    CLIENT_NAME=$(grep -E "^### " /etc/funny/.wg | cut -d ' ' -f 2 | sed -n "${CLIENT_NUMBER}"p)
+    exp=$(grep -E "^### " /etc/funny/.wg | cut -d ' ' -f 3 | sed -n "${CLIENT_NUMBER}"p)
+
+    # Remove peer block from wg0.conf (from ### username to next ### or end)
+    sed -i "/^### $CLIENT_NAME $exp/,/^$/d" /etc/wireguard/wg0.conf
+
+    # Remove client config file
+    rm -f "/etc/wireguard/clients/$CLIENT_NAME.conf"
+
+    # Remove from tracking file
+    sed -i "/^### $CLIENT_NAME $exp/d" /etc/funny/.wg
+
+    # Reload Wireguard
+    wg syncconf wg0 <(wg-quick strip wg0) 2>/dev/null || systemctl restart wg-quick@wg0
+
+    clear
+    TEKS="
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   WIREGUARD ACCOUNT DELETED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Username  : $CLIENT_NAME
+ Expired   : $exp
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    # Send Telegram notification
+    if [[ -f /etc/funny/.chatid ]] && [[ -f /etc/funny/.keybot ]]; then
+        CHATID=$(cat /etc/funny/.chatid)
+        KEY=$(cat /etc/funny/.keybot)
+        URL="https://api.telegram.org/bot$KEY/sendMessage"
+        curl -s --max-time 10 -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEKS&parse_mode=html" "$URL" >/dev/null
+    fi
+
+    echo -e "$TEKS"
+    echo ""
+}
+
+# ============================
+# Renew Wireguard Client
+# ============================
+renew_wg() {
+    clear
+    NUMBER_OF_CLIENTS=$(grep -c -E "^### " /etc/funny/.wg 2>/dev/null)
+    if [[ ${NUMBER_OF_CLIENTS} == '0' ]] || [[ -z "$NUMBER_OF_CLIENTS" ]]; then
+        echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+        echo -e "          ${GREEN}Renew Wireguard Account${NC}                 "
+        echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+        echo -e "  ${RED}You have no existing clients!${NC}"
+        echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+        read -n 1 -s -r -p " Press any key to go back..."
+        return
+    fi
+
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    echo -e "          ${GREEN}Renew Wireguard Account${NC}                 "
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    echo -e "  ${CYAN}No  User          Expired${NC}"
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    grep -E "^### " /etc/funny/.wg | cut -d ' ' -f 2-3 | nl -s ') '
+    echo ""
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+    read -rp " Select client to renew [1-${NUMBER_OF_CLIENTS}]: " CLIENT_NUMBER
+    if [[ -z "$CLIENT_NUMBER" ]]; then
+        return
+    fi
+
+    if ! [[ "$CLIENT_NUMBER" =~ ^[0-9]+$ ]] || [[ "$CLIENT_NUMBER" -lt 1 ]] || [[ "$CLIENT_NUMBER" -gt "$NUMBER_OF_CLIENTS" ]]; then
+        echo -e " ${RED}Invalid selection.${NC}"
+        sleep 1
+        return
+    fi
+
+    read -rp " Extend by (Days) : " masaaktif
+    if [[ -z "$masaaktif" ]] || ! [[ "$masaaktif" =~ ^[0-9]+$ ]]; then
+        echo -e " ${RED}Invalid number of days.${NC}"
+        return
+    fi
+
+    user=$(grep -E "^### " /etc/funny/.wg | cut -d ' ' -f 2 | sed -n "${CLIENT_NUMBER}"p)
+    exp=$(grep -E "^### " /etc/funny/.wg | cut -d ' ' -f 3 | sed -n "${CLIENT_NUMBER}"p)
+
+    # Calculate new expiry from current expiry date
+    now=$(date +%Y-%m-%d)
+    d1=$(date -d "$exp" +%s)
+    d2=$(date -d "$now" +%s)
+    remaining=$(( (d1 - d2) / 86400 ))
+    if [[ "$remaining" -lt 0 ]]; then
+        remaining=0
+    fi
+    new_days=$(($remaining + $masaaktif))
+    new_exp=$(date -d "$new_days days" +"%Y-%m-%d")
+
+    # Update tracking file
+    sed -i "s/### $user $exp/### $user $new_exp/" /etc/funny/.wg
+
+    # Update wg0.conf
+    sed -i "s/### $user $exp/### $user $new_exp/" /etc/wireguard/wg0.conf
+
+    clear
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    echo -e "         ${GREEN}Wireguard Account Renewed${NC}                "
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    echo -e "  Username  : $user"
+    echo -e "  Old Expiry: $exp"
+    echo -e "  Extended  : +$masaaktif Days"
+    echo -e "  New Expiry: $new_exp"
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    echo ""
+}
+
+# ============================
+# List Active Wireguard Clients
+# ============================
+list_wg() {
+    clear
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    echo -e "       ${GREEN}Active Wireguard Members${NC}                  "
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+    data=( $(grep '^###' /etc/funny/.wg 2>/dev/null | cut -d ' ' -f 2 | sort | uniq) )
+    if [[ ${#data[@]} -eq 0 ]]; then
+        echo -e "  ${RED}No active Wireguard clients.${NC}"
+        echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+        return
+    fi
+
+    count=0
+    for user in "${data[@]}"; do
+        exp=$(grep -w "^### $user" /etc/funny/.wg | cut -d ' ' -f 3 | sort | uniq)
+        # Check if connected via wg show
+        connected=""
+        if wg show wg0 2>/dev/null | grep -qA2 "$(grep -A1 "^### $user" /etc/wireguard/wg0.conf | grep PublicKey | awk '{print $3}')"; then
+            connected="${GREEN}● Online${NC}"
+        else
+            connected="${RED}○ Offline${NC}"
+        fi
+        echo -e "  ${CYAN}User${NC}: $user  ${CYAN}Exp${NC}: $exp  $connected"
+        count=$((count + 1))
+    done
+
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    echo -e "  ${GREEN}$count${NC} Member(s) Active"
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+}
+
+# ============================
+# Show Client Config
+# ============================
+show_config() {
+    clear
+    NUMBER_OF_CLIENTS=$(grep -c -E "^### " /etc/funny/.wg 2>/dev/null)
+    if [[ ${NUMBER_OF_CLIENTS} == '0' ]] || [[ -z "$NUMBER_OF_CLIENTS" ]]; then
+        echo -e "  ${RED}No existing clients.${NC}"
+        return
+    fi
+
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    echo -e "        ${GREEN}View Client Config${NC}                       "
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    grep -E "^### " /etc/funny/.wg | cut -d ' ' -f 2-3 | nl -s ') '
+    echo ""
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+    read -rp " Select client [1-${NUMBER_OF_CLIENTS}]: " CLIENT_NUMBER
+    if [[ -z "$CLIENT_NUMBER" ]]; then
+        return
+    fi
+
+    CLIENT_NAME=$(grep -E "^### " /etc/funny/.wg | cut -d ' ' -f 2 | sed -n "${CLIENT_NUMBER}"p)
+    CONFIG_FILE="/etc/wireguard/clients/$CLIENT_NAME.conf"
+
+    if [[ -f "$CONFIG_FILE" ]]; then
+        clear
+        echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+        echo -e "  ${GREEN}Config for: $CLIENT_NAME${NC}"
+        echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+        cat "$CONFIG_FILE"
+        echo ""
+        echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    else
+        echo -e "  ${RED}Config file not found for $CLIENT_NAME.${NC}"
+    fi
+}
+
+# ============================
+# Main Menu
+# ============================
+wg_menu() {
+    clear
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    echo -e "        ${GREEN}WIREGUARD WARP MENU${NC}                      "
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+
+    # Show status
+    if systemctl is-active --quiet wg-quick@wg0; then
+        echo -e "  Service : ${GREEN}● Running${NC}  Port: ${CYAN}$SERVER_PORT${NC}"
+    else
+        echo -e "  Service : ${RED}● Stopped${NC}"
+    fi
+
+    TOTAL=$(grep -c -E "^### " /etc/funny/.wg 2>/dev/null || echo 0)
+    echo -e "  Clients : ${CYAN}$TOTAL${NC} registered"
+
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    echo -e "  1. Create Account"
+    echo -e "  2. Delete Account"
+    echo -e "  3. Renew  Account"
+    echo -e "  4. List Active Members"
+    echo -e "  5. View Client Config"
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    echo -e "  Press X to exit"
+    echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+    echo ""
+    read -rp " Input Option: " opt
+    case $opt in
+        1) add_wg ; read -n 1 -s -r -p " Press any key to continue..." ; wg_menu ;;
+        2) del_wg ; read -n 1 -s -r -p " Press any key to continue..." ; wg_menu ;;
+        3) renew_wg ; read -n 1 -s -r -p " Press any key to continue..." ; wg_menu ;;
+        4) list_wg ; read -n 1 -s -r -p " Press any key to continue..." ; wg_menu ;;
+        5) show_config ; read -n 1 -s -r -p " Press any key to continue..." ; wg_menu ;;
+        x|X) exit ;;
+        *) echo -e " ${RED}Invalid option.${NC}" ; sleep 1 ; wg_menu ;;
+    esac
+}
+
+wg_menu

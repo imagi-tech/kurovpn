@@ -1,0 +1,204 @@
+#!/bin/bash
+#
+#  |=================================================================================|
+#  • KUROVPN - Telegram Bot Setup Menu                                                |
+#  |=================================================================================|
+#
+clear
+
+BOT_DIR="/opt/kurovpn"
+BOT_SCRIPT="$BOT_DIR/bot.py"
+BOT_SERVICE="/etc/systemd/system/kurovpn-bot.service"
+REPO_PLUGIN="/usr/bin"
+
+lanjut() {
+    rm -f /etc/funny/.chatid /etc/funny/.keybot
+    echo "$api" > /etc/funny/.keybot
+    echo "$itd" > /etc/funny/.chatid
+    chmod 600 /etc/funny/.keybot /etc/funny/.chatid
+    clear
+    echo -e "
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✅ Bot Notification Saved
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  API Bot : $api
+  Chat ID : $itd
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"
+}
+
+setup_notif() {
+    clear
+    echo -e "
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Setup Bot Notification
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"
+    read -p "  API Key Bot : " api
+    read -p "  Your Chat ID: " itd
+    clear
+    echo -e "
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Confirm Your Data
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  API Bot : $api
+  Chat ID : $itd
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"
+    read -p "  Is the data correct? (y/n): " opw
+    case $opw in
+        y|Y) clear ; lanjut ;;
+        *) clear ; setup_notif ;;
+    esac
+}
+
+install_bot() {
+    clear
+    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "  Installing Bot Controller"
+    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    # Check if token is set
+    if [[ ! -f /etc/funny/.keybot ]] || [[ -z $(cat /etc/funny/.keybot) ]]; then
+        echo -e "\n  ❌ Bot Token not set!"
+        echo -e "  Please setup Bot Notification first (Option 1)."
+        echo ""
+        read -n 1 -s -r -p "  Press any key to go back..."
+        return
+    fi
+
+    # Install dependency
+    echo -e "  [1/3] Installing python-telegram-bot..."
+    pip3 install python-telegram-bot==21.10 -q 2>/dev/null || {
+        apt install -y python3-pip >/dev/null 2>&1
+        pip3 install python-telegram-bot==21.10 -q
+    }
+
+    # Deploy bot
+    echo -e "  [2/3] Deploying bot..."
+    mkdir -p "$BOT_DIR"
+    cp "$REPO_PLUGIN/bot.py" "$BOT_SCRIPT" 2>/dev/null || {
+        # Fallback: check if it's alongside this script
+        SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+        if [[ -f "$SCRIPT_DIR/../Plugin/bot.py" ]]; then
+            cp "$SCRIPT_DIR/../Plugin/bot.py" "$BOT_SCRIPT"
+        else
+            echo -e "  ❌ bot.py not found. Please ensure it's deployed."
+            return
+        fi
+    }
+    chmod +x "$BOT_SCRIPT"
+
+    # Deploy service
+    echo -e "  [3/3] Installing systemd service..."
+    cat > "$BOT_SERVICE" <<EOF
+[Unit]
+Description=KUROVPN Telegram Bot Controller
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$BOT_DIR
+ExecStart=/usr/bin/python3 $BOT_SCRIPT
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable kurovpn-bot
+    systemctl restart kurovpn-bot
+
+    sleep 2
+    if systemctl is-active --quiet kurovpn-bot; then
+        echo -e "\n  ✅ Bot Controller installed and running!"
+        echo -e "  Open Telegram and send /start to your bot."
+    else
+        echo -e "\n  ⚠️  Service started but may have issues."
+        echo -e "  Check logs: journalctl -u kurovpn-bot -f"
+    fi
+    echo ""
+    read -n 1 -s -r -p "  Press any key to go back..."
+}
+
+bot_status() {
+    clear
+    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "  Bot Controller Status"
+    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    if systemctl is-active --quiet kurovpn-bot; then
+        echo -e "  Service : 🟢 Running"
+    else
+        echo -e "  Service : 🔴 Stopped"
+    fi
+
+    if [[ -f /etc/funny/.keybot ]]; then
+        tok=$(cat /etc/funny/.keybot)
+        echo -e "  Token   : ${tok:0:8}...(${#tok} chars)"
+    else
+        echo -e "  Token   : ❌ Not set"
+    fi
+
+    if [[ -f /etc/funny/.chatid ]]; then
+        echo -e "  Chat ID : $(cat /etc/funny/.chatid)"
+    else
+        echo -e "  Chat ID : ❌ Not set"
+    fi
+
+    echo -e "━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    echo -e "  Recent logs:"
+    echo -e "  ─────────────────────────"
+    journalctl -u kurovpn-bot --no-pager -n 10 2>/dev/null || echo "  No logs available."
+    echo ""
+    read -n 1 -s -r -p "  Press any key to go back..."
+}
+
+restart_bot() {
+    systemctl restart kurovpn-bot
+    echo -e "  ✅ Bot restarted."
+    sleep 1
+}
+
+stop_bot() {
+    systemctl stop kurovpn-bot
+    echo -e "  🔴 Bot stopped."
+    sleep 1
+}
+
+mna() {
+    clear
+    echo -e "
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  KUROVPN TELEGRAM BOT MENU
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. Setup Bot Token & Chat ID
+  2. Install Bot Controller
+  3. Bot Status & Logs
+  4. Restart Bot
+  5. Stop Bot
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Press X to exit
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"
+    read -p "  Input Option: " apws
+    case $apws in
+        1) clear ; setup_notif ; mna ;;
+        2) clear ; install_bot ; mna ;;
+        3) clear ; bot_status ; mna ;;
+        4) clear ; restart_bot ; mna ;;
+        5) clear ; stop_bot ; mna ;;
+        x|X) exit ;;
+        *) clear ; mna ;;
+    esac
+}
+
+mna

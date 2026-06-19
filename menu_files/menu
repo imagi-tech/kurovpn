@@ -43,6 +43,7 @@ if systemctl is-active --quiet badvpn; then udpw="${green}ON${NC}"; else udpw="$
 if systemctl is-active --quiet nginx; then resngx="${green}ON${NC}"; else resngx="${red}OFF${NC}"; fi
 if systemctl is-active --quiet noobzvpns; then noob="${green}ON${NC}"; else noob="${red}OFF${NC}"; fi
 if systemctl is-active --quiet xray; then xstatus="${green}ON${NC}"; else xstatus="${red}OFF${NC}"; fi
+if systemctl is-active --quiet wg-quick@wg0; then wgst="${green}ON${NC}"; else wgst="${red}OFF${NC}"; fi
 clear
 echo -e "================================================================================" | lolcat
 echo -e " Autoscript VPN By FN Project | FN 项目的 Autoscript VPN | 丁达·普特里·辛迪亚尼 "
@@ -60,14 +61,16 @@ echo -e "\e[037;1m Swap Ram VPS Total:${green} $freswp${NC}"
 echo -e "================================================================================" | lolcat
 echo -e " 安全外壳  : $ossh " " V2ray负载均衡  : $xstatus " " Nginx 负载 : $resngx "
 echo -e " NoobzVPN 的 : $noob " " UDP 自定义 : $udpn " " 坏VPN / 乌德普格瓦 : $udpw "
+echo -e " Wireguard  : $wgst "
 echo -e "================================================================================" | lolcat
 echo -e "${white} [ 1 ] •${white} MENU SSH" "          ${white} [ 4 ] •${white} MENU Warp Wireguard"
 echo -e "${white} [ 2 ] •${white} MENU V2RAY" "        ${white} [ 5 ] •${white} MENU L2TP/IPSEC PSK"
 echo -e "${white} [ 3 ] •${white} MENU NoobZVPN" "     ${white} [ 6 ] •${white} MENU SYSTEM"
+echo -e "${white} [ 7 ] •${white} TELEGRAM BOT"
 echo -e "================================================================================" | lolcat
-echo -e "     @Rerechan02 | L | Github | @PR_Aiman | Rerechan-Team | FN Project Team     
+echo -e "     KUROVPN Project | Powered by Imagi-Tech
 "
-read -p "Input Option [ 1 - 6 ] or x to exit : " apws
+read -p "Input Option [ 1 - 7 ] or x to exit : " apws
 case $apws in
                1) clear ; menu-ssh ; exit ;;
                2) clear ; menu-xray ; exit ;;
@@ -75,6 +78,7 @@ case $apws in
                4) clear ; Menu-WGF ; exit ;;
                5) clear ; lmenu ; exit ;;
                6) clear ; menu-set ; exit ;;
+               7) clear ; botmenu ; exit ;;
                x|X) exit ;;
                *) menu ;;
 esac

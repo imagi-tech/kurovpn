@@ -64,7 +64,6 @@ Expiration_Display=$(date -u --date="1970-01-01 $Expire_On sec GMT" '+%d %b %Y')
 passwd -u $User
 usermod -e  $Expiration $User
 egrep "^$User" /etc/passwd >/dev/null
-echo -e "$Pass\n$Pass\n"|passwd $User &> /dev/null
 clear
 echo -e "\e[33m==========================================\033[0m"
 echo -e "\E[40;1;37m               RENEW  USER                \E[0m"

@@ -97,5 +97,23 @@ chmod 600 /etc/ppp/chap-secrets* /etc/ipsec.d/passwd*
 fi
 done
 
+##------ Auto Remove Wireguard
+if [[ -f /etc/funny/.wg ]]; then
+data=( $(cat /etc/funny/.wg | grep '^###' | cut -d ' ' -f 2 | sort | uniq) )
+now=$(date +"%Y-%m-%d")
+for user in "${data[@]}"
+do
+exp=$(grep -w "^### $user" /etc/funny/.wg | cut -d ' ' -f 3 | sort | uniq)
+d1=$(date -d "$exp" +%s)
+d2=$(date -d "$now" +%s)
+exp2=$(( (d1 - d2) / 86400 ))
+if [[ "$exp2" -le "0" ]]; then
+sed -i "/^### $user $exp/,/^$/d" /etc/wireguard/wg0.conf
+rm -f /etc/wireguard/clients/$user.conf
+sed -i "/^### $user $exp/d" /etc/funny/.wg
+fi
+done
+fi
+
 systemctl daemon-reload
 systemctl restart ssh xray noobzvpns wg-quick@wgcf wg-quick@wg0 xl2tpd ipsec
