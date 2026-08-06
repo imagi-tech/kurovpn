@@ -7,8 +7,8 @@ A fully interactive Telegram bot that replaces SSH access for managing your VPN 
 ```
 ┌──────────────┐     ┌──────────────────┐     ┌─────────────────┐
 │   Telegram   │────▶│  bot.py (Python) │────▶│  System Commands │
-│   (Admin)    │◀────│  python-telegram  │◀────│  (bash, wg, etc) │
-│              │     │  -bot v21.10     │     │                  │
+│   (Admin)    │◀────│  (stdlib only)   │◀────│  (bash, wg, etc) │
+│              │     │                  │     │                  │
 └──────────────┘     └──────────────────┘     └─────────────────┘
                             │
                      ┌──────┴──────┐
@@ -46,45 +46,35 @@ A fully interactive Telegram bot that replaces SSH access for managing your VPN 
 
 ### Quick Install (from menu)
 ```bash
-menu    # Select Option 7 → Telegram Bot
-        # 1. Setup Bot Token & Chat ID
-        # 2. Install Bot Controller
+menu        # Select 7) Bot / Backup → 3) Telegram Bot Setup
+            # Enter your bot token and chat ID → bot starts automatically
 ```
+Send `/start` in Telegram to verify.
 
 ### Manual Install
 ```bash
 # 1. Get a bot token from @BotFather on Telegram
 # 2. Get your Chat ID from @userinfobot
 
-# 3. Save credentials
+# 3. Save credentials and start
 echo "YOUR_BOT_TOKEN" > /etc/funny/.keybot
-echo "YOUR_CHAT_ID" > /etc/funny/.chatid
+echo "YOUR_CHAT_ID"  > /etc/funny/.chatid
+systemctl enable --now kurovpn-bot
 
-# 4. Install dependency
-pip3 install python-telegram-bot==21.10
-
-# 5. Deploy
-mkdir -p /opt/kurovpn
-cp Plugin/bot.py /opt/kurovpn/bot.py
-cp Plugin/kurovpn-bot.service /etc/systemd/system/
-
-# 6. Start
-systemctl daemon-reload
-systemctl enable kurovpn-bot
-systemctl start kurovpn-bot
-
-# 7. Verify
+# 4. Verify
 journalctl -u kurovpn-bot -f
 ```
 
+No pip dependencies required — bot.py uses only Python standard library.
+
 ## Usage
 1. Open Telegram and find your bot
-2. Send `/start` or `/menu`
-3. Navigate using inline keyboard buttons
-4. Create accounts with guided step-by-step prompts
-5. Send `/cancel` at any time to abort an operation
+2. Send `/start` for the command list
+3. Use commands like `/add_vmess`, `/list`, `/status`, `/verify`
+4. Interactive commands accept `username|days` format
+5. Only whitelisted admin chat IDs can use the bot
 
 ## Files
-- `Plugin/bot.py` — Main bot source code
+- `Plugin/bot.py` — Main bot source code (stdlib only, no pip deps)
 - `Plugin/kurovpn-bot.service` — Systemd service unit
-- `menu_files/botmenu` — CLI installer/manager menu
+- `commands/botmenu` — CLI installer (saves token + starts bot, deployed by install.sh)

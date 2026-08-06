@@ -110,6 +110,25 @@ install_commands() {
         chmod 644 "/usr/lib/kurovpn/hysteria-clients.sh"
     fi
 
+    # Deploy Telegram bot
+    if [[ -f "$SCRIPT_DIR/Plugin/bot.py" ]]; then
+        mkdir -p /opt/kurovpn
+        cp "$SCRIPT_DIR/Plugin/bot.py" /opt/kurovpn/bot.py
+        chmod +x /opt/kurovpn/bot.py
+    fi
+
+    # Deploy bot systemd service
+    if [[ -f "$SCRIPT_DIR/Plugin/kurovpn-bot.service" ]]; then
+        cp "$SCRIPT_DIR/Plugin/kurovpn-bot.service" /etc/systemd/system/kurovpn-bot.service
+        systemctl daemon-reload 2>/dev/null || true
+    fi
+
+    # Deploy uninstall as a command
+    if [[ -f "$SCRIPT_DIR/uninstall.sh" ]]; then
+        cp "$SCRIPT_DIR/uninstall.sh" /usr/bin/uninstall
+        chmod +x /usr/bin/uninstall
+    fi
+
     log_info "Commands and libraries installed"
 }
 

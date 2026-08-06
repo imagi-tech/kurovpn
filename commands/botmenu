@@ -26,31 +26,32 @@ echo "$CHATID" > /etc/funny/.chatid
 chmod 600 /etc/funny/.keybot /etc/funny/.chatid
 
 echo ""
-echo "Bot credentials saved."
+echo "Credentials saved."
 echo ""
 
-# Deploy bot.py — try multiple locations
-BOT_DEST="/opt/kurovpn/bot.py"
-found=""
-for src in \
-    "$SCRIPT_DIR/../Plugin/bot.py" \
-    "/usr/lib/kurovpn/../Plugin/bot.py" \
-    "/root/kurovpn/Plugin/bot.py" \
-    "$(pwd)/Plugin/bot.py"; do
-    if [[ -f "$src" ]]; then
-        mkdir -p "$(dirname "$BOT_DEST")"
-        cp "$src" "$BOT_DEST"
-        chmod +x "$BOT_DEST"
-        found="$src"
-        break
-    fi
-done
-
-if [[ -z "$found" ]]; then
-    echo "WARNING: Could not find Plugin/bot.py to deploy."
-    echo "Please copy it manually to $BOT_DEST"
+# Validate token
+BOT_USERNAME=$(curl -s --max-time 10 "https://api.telegram.org/bot${TOKEN}/getMe" 2>/dev/null | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
+if [[ -n "$BOT_USERNAME" ]]; then
+    echo "Token valid — bot @${BOT_USERNAME}"
 else
-    echo "Deployed bot.py from $found to $BOT_DEST"
+    echo "WARNING: Could not validate token. Check your token and try again."
+fi
+
+# Ensure bot.py is deployed
+BOT_DEST="/opt/kurovpn/bot.py"
+if [[ ! -f "$BOT_DEST" ]]; then
+    mkdir -p "$(dirname "$BOT_DEST")"
+    if [[ -f "$SCRIPT_DIR/../Plugin/bot.py" ]]; then
+        cp "$SCRIPT_DIR/../Plugin/bot.py" "$BOT_DEST"
+    elif [[ -f "/root/kurovpn/Plugin/bot.py" ]]; then
+        cp "/root/kurovpn/Plugin/bot.py" "$BOT_DEST"
+    else
+        echo "ERROR: bot.py not found. Re-run install.sh to deploy it."
+        read -n1 -s -r -p "Press any key..."
+        exit 1
+    fi
+    chmod +x "$BOT_DEST"
+    echo "Deployed bot.py → $BOT_DEST"
 fi
 
 # Create systemd service
@@ -64,6 +65,7 @@ Wants=network-online.target
 Type=simple
 User=root
 WorkingDirectory=/opt/kurovpn
+Environment=PYTHONUNBUFFERED=1
 ExecStart=/usr/bin/python3 /opt/kurovpn/bot.py
 Restart=always
 RestartSec=10
@@ -75,21 +77,16 @@ WantedBy=multi-user.target
 UNIT
 
 systemctl daemon-reload
+systemctl enable kurovpn-bot 2>/dev/null || true
+systemctl restart kurovpn-bot 2>/dev/null || true
 
+sleep 2
 echo ""
-read -p "Enable and start bot on boot? [y/N]: " enable
-if [[ "$enable" == "y" || "$enable" == "Y" ]]; then
-    systemctl enable kurovpn-bot
-    systemctl restart kurovpn-bot
-    sleep 2
-    if systemctl is-active --quiet kurovpn-bot; then
-        echo "Bot is running."
-    else
-        echo "Bot failed to start. Check: journalctl -u kurovpn-bot"
-    fi
+if systemctl is-active --quiet kurovpn-bot; then
+    echo "Bot is running. Send /start in Telegram."
 else
-    echo "Bot files installed but not started."
-    echo "Start manually: systemctl start kurovpn-bot"
+    echo "Bot failed to start. Last log entries:"
+    journalctl -u kurovpn-bot -n 15 --no-pager 2>/dev/null
 fi
 
 echo ""

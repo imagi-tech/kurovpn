@@ -7,6 +7,7 @@ Wants=network-online.target
 Type=simple
 User=root
 WorkingDirectory=/opt/kurovpn
+Environment=PYTHONUNBUFFERED=1
 ExecStart=/usr/bin/python3 /opt/kurovpn/bot.py
 Restart=always
 RestartSec=10

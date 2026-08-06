@@ -196,8 +196,10 @@ GET / HTTP/1.1[crlf]Host: your-domain.com[crlf]Upgrade: websocket[crlf][crlf]
 
 ## Uninstall
 
+Run from the interactive menu (`menu` → `System Menu` → `Uninstall KUROVPN`) or directly:
+
 ```bash
-sudo ./uninstall.sh
+uninstall
 ```
 
 Removes all KUROVPN-installed services, configuration files, cron jobs, iptables rules, and binaries. User home directories are preserved. You will be prompted to confirm.
@@ -208,11 +210,11 @@ Removes all KUROVPN-installed services, configuration files, cron jobs, iptables
 kurovpn-verify
 ```
 
-Runs a 27-point health check covering:
-- **10 services:** nginx, xray, dropbear, ssh, edu, wireguard, xl2tpd, ipsec, pptpd, badvpn.
-- **7 configuration checks:** Xray config valid JSON, domain set, TLS cert valid, users.json.
-- **6 port checks:** 443, 80, 22, 109, 7300, 2048 all listening.
-- **4 management checks:** menu, xp, backup commands present, cron installed.
+Runs a 34-point health check covering:
+- **11 services:** nginx, xray, dropbear, ssh, edu, wireguard, xl2tpd, ipsec, pptpd, badvpn, hysteria.
+- **9 configuration checks:** Xray config valid, domain set, TLS cert valid, users.json, reality keypair, hysteria config.
+- **9 port checks:** 443, 80, 22, 109, 7300, 2048, 8443, 10010, 443/udp all listening.
+- **5 management checks:** menu, xp, backup, uninstall commands present, cron installed.
 
 ## Telegram Bot
 
@@ -221,15 +223,11 @@ An admin-only Telegram bot for remote server management.
 ### Setup
 
 ```bash
-# Interactive: saves token and chat ID, deploys bot.py, offers to enable systemd
+# Interactive: enter bot token and chat ID — bot starts automatically
 botmenu
-
-# Manual:
-echo "BOT_TOKEN" > /etc/funny/.keybot
-echo "CHAT_ID"  > /etc/funny/.chatid
-cp Plugin/bot.py /opt/kurovpn/bot.py
-systemctl enable --now kurovpn-bot
 ```
+
+After setup, send `/start` in Telegram to verify. The bot launches on boot automatically via systemd.
 
 ### Commands
 

@@ -70,6 +70,7 @@ rm -f /usr/bin/addssh /usr/bin/add-l2tp /usr/bin/add-ssws
 rm -f /usr/bin/add-trojan /usr/bin/add-vless /usr/bin/add-vmess
 rm -f /usr/bin/add-reality /usr/bin/add-ss2022 /usr/bin/add-hysteria2
 rm -f /usr/bin/backup /usr/bin/xp /usr/bin/kurovpn-verify
+rm -f /usr/bin/uninstall
 
 # ── Remove library directory ───────────────────────────
 rm -rf /usr/lib/kurovpn

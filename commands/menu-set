@@ -22,6 +22,7 @@ echo ""
 echo "  8) Backup & Restore Menu"
 echo "  9) Domain / Cert Menu"
 echo " 10) Bandwidth Monitor (vnstat)"
+echo " 11) Uninstall KUROVPN"
 echo ""
 echo "  X) Back to Main Menu"
 echo ""
@@ -58,6 +59,7 @@ case "$opt" in
     8) bmenu ;;
     9) dm-menu ;;
     10) vnstat 2>/dev/null || echo "vnstat not installed"; echo ""; read -n1 -s -r -p "Press any key..." ;;
+    11) /usr/bin/uninstall; exit 0 ;;
     X|x) clear; exit 0 ;;
 esac
 done

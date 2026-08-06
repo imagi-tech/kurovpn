@@ -76,7 +76,8 @@ echo -e "${YELLOW}[ Management ]${NC}"
 check_warn "menu command"   'test -x /usr/bin/menu'
 check_warn "xp command"     'test -x /usr/bin/xp'
 check_warn "backup command" 'test -x /usr/bin/backup'
-check "cron installed"      'test -f /etc/cron.d/kurovpn'
+check "cron installed"        'test -f /etc/cron.d/kurovpn'
+check_warn "uninstall command" 'test -x /usr/bin/uninstall'
 echo ""
 
 echo -e "${CYAN}══════════════════════════════════════════════${NC}"
