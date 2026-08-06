@@ -12,50 +12,16 @@ VPN_IPSEC_PSK="kurovpn-psk"
 L2TP_USER="vpnuser"
 L2TP_PASS=""
 
-compile_libreswan() {
-    log_info "Compiling Libreswan 3.32"
-    if /usr/local/sbin/ipsec --version 2>/dev/null | grep -q "3.32"; then
-        log_info "Libreswan 3.32 already installed"
+install_libreswan() {
+    log_info "Installing Libreswan (apt package)"
+    if /usr/sbin/ipsec --version 2>/dev/null | grep -q "Libreswan"; then
+        log_info "Libreswan already installed"
         return
     fi
-
-    mkdir -p /opt/src
-    cd /opt/src
-
-    local swan_file="libreswan-3.32.tar.gz"
-    wget -t 3 -T 30 -nv -O "$swan_file" "https://github.com/libreswan/libreswan/archive/v3.32.tar.gz" \
-        || wget -t 3 -T 30 -nv -O "$swan_file" "https://download.libreswan.org/$swan_file" \
-        || die "Failed to download Libreswan"
-
-    rm -rf /opt/src/libreswan-3.32
-    tar xzf "$swan_file" && rm -f "$swan_file"
-    cd libreswan-3.32 || die "Failed to enter libreswan directory"
-
-    cat > Makefile.inc.local << 'MAKE_EOF'
-WERROR_CFLAGS = -w
-USE_DNSSEC = false
-USE_DH2 = true
-USE_DH31 = false
-USE_NSS_AVA_COPY = true
-USE_NSS_IPSEC_PROFILE = false
-USE_GLIBC_KERN_FLIP_HEADERS = true
-MAKE_EOF
-
-    if ! grep -qs IFLA_XFRM_LINK /usr/include/linux/if_link.h; then
-        echo "USE_XFRM_INTERFACE_IFLA_HEADER = true" >> Makefile.inc.local
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libreswan 2>/dev/null || true
+    if ! /usr/sbin/ipsec --version 2>/dev/null | grep -q "Libreswan"; then
+        log_warn "Libreswan apt package unavailable — ipsec may not work"
     fi
-
-    local nprocs
-    nprocs=$(nproc)
-    make -j"$nprocs" -s base && make -s install-base || die "Libreswan build failed"
-
-    cd /opt/src
-    rm -rf /opt/src/libreswan-3.32
-
-    if ! /usr/local/sbin/ipsec --version 2>/dev/null | grep -qF "3.32"; then
-        die "Libreswan 3.32 failed to build"
-    fi
-    log_info "Libreswan 3.32 compiled successfully"
 }
 
 install_l2tp() {
@@ -72,7 +38,7 @@ install_l2tp() {
         libcurl4-nss-dev flex bison gcc make libnss3-tools \
         libevent-dev ppp libsystemd-dev 2>/dev/null || true
 
-    compile_libreswan
+    install_libreswan
 
     local l2tp_net="192.168.42.0/24"
     local l2tp_local="192.168.42.1"

@@ -31,6 +31,7 @@ set_dns() {
     fi
 
     # Replace resolv.conf with a static file
+    chattr -i /etc/resolv.conf 2>/dev/null || true
     rm -f /etc/resolv.conf
     {
         echo "nameserver 1.1.1.1"

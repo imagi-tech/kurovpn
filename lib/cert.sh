@@ -31,11 +31,16 @@ install_acme() {
 issue_cert() {
     local domain="$1" ipv="$2"
 
+    # Skip if cert already exists and is valid
+    if [[ -f "$CERT_DIR/xray.crt" ]] && openssl x509 -in "$CERT_DIR/xray.crt" -noout -checkend 86400 &>/dev/null; then
+        log_info "Certificate already exists and is valid for $domain"
+        return 0
+    fi
+
     log_step "Issuing TLS certificate for $domain"
 
     install_acme
 
-    # Stop nginx if running (standalone mode needs port 80)
     svc_stop nginx 2>/dev/null || true
 
     local issue_args="--issue -d $domain --standalone -k ec-256"
@@ -44,9 +49,8 @@ issue_cert() {
     fi
 
     log_info "Requesting certificate (this may take a moment)..."
-    /root/.acme.sh/acme.sh $issue_args 2>&1 || die "Certificate issuance failed for $domain"
+    /root/.acme.sh/acme.sh $issue_args 2>&1
 
-    # Install certs to /etc/xray/
     mkdir -p "$CERT_DIR"
     /root/.acme.sh/acme.sh --installcert -d "$domain" \
         --fullchainpath "$CERT_DIR/xray.crt" \

@@ -3,27 +3,32 @@
 #  KUROVPN -- VPN Auto-Installer & Manager
 #  https://github.com/imagi-tech/kurovpn
 #
-#  modules/noobzvpns.sh -- NoobZVPNS TLS/WebSocket VPN
+#  modules/noobzvpns.sh -- NoobZVPNS TLS/WebSocket VPN (optional)
 
 source "$SCRIPT_DIR/lib/common.sh"
 
-NOOBZ_VERSION="2.4.0"
-
 install_noobzvpns() {
-    log_step "Installing NoobZVPNS v${NOOBZ_VERSION}"
+    log_step "Installing NoobZVPNS"
 
-    # Download binary
-    local url="https://github.com/noobz-id/noobzvpns/releases/download/v${NOOBZ_VERSION}/noobzvpns.linux.amd64"
+    local url="https://github.com/noobz-id/noobzvpns/releases/download/v1.3.1a/noobzvpns.x86_64"
+
     log_info "Downloading NoobZVPNS..."
-    curl -sL "$url" -o /usr/bin/noobzvpns || die "Failed to download NoobZVPNS"
-    chmod +x /usr/bin/noobzvpns
+    if curl -sLf "$url" -o /usr/bin/noobzvpns 2>/dev/null; then
+        chmod +x /usr/bin/noobzvpns
+    elif curl -sLf "https://github.com/noobz-id/noobzvpns/raw/master/noobzvpns.x86_64" -o /usr/bin/noobzvpns 2>/dev/null; then
+        chmod +x /usr/bin/noobzvpns
+    else
+        log_warn "NoobZVPNS binary unavailable — skipping (manual install required)"
+        return 0
+    fi
 
-    # Download TLS cert/key
-    curl -sL "https://raw.githubusercontent.com/noobz-id/noobzvpns/master/cert.pem" -o /etc/noobzvpns/cert.pem 2>/dev/null || true
-    curl -sL "https://raw.githubusercontent.com/noobz-id/noobzvpns/master/key.pem" -o /etc/noobzvpns/key.pem 2>/dev/null || true
-    chmod +x /etc/noobzvpns/* 2>/dev/null || true
+    if [[ "$(wc -c < /usr/bin/noobzvpns)" -lt 1000 ]]; then
+        log_warn "NoobZVPNS download appears invalid — skipping"
+        rm -f /usr/bin/noobzvpns
+        return 0
+    fi
 
-    # Config
+    mkdir -p /etc/noobzvpns
     cat > /etc/noobzvpns/config.json << 'EOF'
 {
   "tcp_std": [8080],
@@ -37,7 +42,9 @@ install_noobzvpns() {
 }
 EOF
 
-    # Systemd unit
+    curl -sLf "https://raw.githubusercontent.com/noobz-id/noobzvpns/master/cert.pem" -o /etc/noobzvpns/cert.pem 2>/dev/null || true
+    curl -sLf "https://raw.githubusercontent.com/noobz-id/noobzvpns/master/key.pem" -o /etc/noobzvpns/key.pem 2>/dev/null || true
+
     cat > /etc/systemd/system/noobzvpns.service << 'EOF'
 [Unit]
 Description=NoobZVPNS Service

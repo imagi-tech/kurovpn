@@ -12,6 +12,13 @@ install_nginx() {
 
     local domain="$1"
 
+    # Free port 53 from systemd-resolved stub listener
+    if svc_active "systemd-resolved" 2>/dev/null; then
+        log_info "Disabling systemd-resolved DNS stub on port 53"
+        sed -i 's/^#*DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf
+        svc_restart systemd-resolved 2>/dev/null || true
+    fi
+
     # Remove default configs
     rm -f /etc/nginx/sites-enabled/default /etc/nginx/sites-available/default
 
