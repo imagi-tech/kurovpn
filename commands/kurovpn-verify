@@ -1,0 +1,91 @@
+#!/bin/bash
+#
+#  KUROVPN — System Verification Tool
+#  https://github.com/imagi-tech/kurovpn
+#
+#  Usage: kurovpn-verify
+
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+
+PASS=0; FAIL=0; WARN=0
+
+check() {
+    local label="$1"; shift
+    local cmd="$*"
+    if eval "$cmd"; then
+        echo -e "  ${GREEN}[PASS]${NC} $label"; ((PASS++))
+    else
+        echo -e "  ${RED}[FAIL]${NC} $label"; ((FAIL++))
+    fi
+}
+
+check_warn() {
+    local label="$1"; shift
+    local cmd="$*"
+    if eval "$cmd"; then
+        echo -e "  ${GREEN}[PASS]${NC} $label"; ((PASS++))
+    else
+        echo -e "  ${YELLOW}[WARN]${NC} $label"; ((WARN++))
+    fi
+}
+
+echo -e "${CYAN}══════════════════════════════════════════════${NC}"
+echo -e "${CYAN}  KUROVPN System Verification${NC}"
+echo -e "${CYAN}══════════════════════════════════════════════${NC}"
+echo ""
+
+echo -e "${YELLOW}[ Services ]${NC}"
+check "nginx is running"    systemctl is-active --quiet nginx
+check "xray is running"     systemctl is-active --quiet xray
+check "dropbear is running" systemctl is-active --quiet dropbear
+check "ssh is running"      systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd
+check_warn "edu WS proxy"   systemctl is-active --quiet edu
+check_warn "wg-quick@wg0"   systemctl is-active --quiet "wg-quick@wg0"
+check_warn "xl2tpd"         systemctl is-active --quiet xl2tpd
+check_warn "ipsec"          systemctl is-active --quiet ipsec
+check_warn "pptpd"          systemctl is-active --quiet pptpd
+check_warn "badvpn"         systemctl is-active --quiet badvpn
+echo ""
+
+echo -e "${YELLOW}[ Configuration ]${NC}"
+check "xray config valid"   /usr/bin/xray run -test -config /etc/xray/config.json '&>/dev/null'
+check_warn "xray binary"    'test -x /usr/bin/xray'
+check_warn "nginx config"   'nginx -t &>/dev/null'
+check "domain set"          'test -f /etc/xray/domain -a -s /etc/xray/domain'
+check "TLS cert exists"     'test -f /etc/xray/xray.crt -a -f /etc/xray/xray.key'
+check "TLS cert not expired" 'openssl x509 -in /etc/xray/xray.crt -noout -checkend 86400 &>/dev/null'
+check "users.json"          'test -f /etc/kurovpn/users.json'
+echo ""
+
+echo -e "${YELLOW}[ Ports ]${NC}"
+check "port 443 (nginx)"    'ss -tlnp 2>/dev/null | grep -q ":443.*nginx"'
+check "port 80  (nginx)"    'ss -tlnp 2>/dev/null | grep -q ":80.*nginx"'
+check "port 22  (ssh)"      'ss -tlnp 2>/dev/null | grep -q ":22.*ssh"'
+check_warn "port 109 (dropbear)" 'ss -tlnp 2>/dev/null | grep -q ":109.*dropbear"'
+check_warn "port 7300 (badvpn)"  'ss -tlnp 2>/dev/null | grep -q ":7300"'
+check_warn "port 2048 (wg)"      'ss -ulnp 2>/dev/null | grep -q ":2048"'
+echo ""
+
+echo -e "${YELLOW}[ Management ]${NC}"
+check_warn "menu command"   'test -x /usr/bin/menu'
+check_warn "xp command"     'test -x /usr/bin/xp'
+check_warn "backup command" 'test -x /usr/bin/backup'
+check "cron installed"      'test -f /etc/cron.d/kurovpn'
+echo ""
+
+echo -e "${CYAN}══════════════════════════════════════════════${NC}"
+echo -e "  Results: ${GREEN}${PASS} passed${NC}, ${YELLOW}${WARN} warnings${NC}, ${RED}${FAIL} failed${NC}"
+echo -e "${CYAN}══════════════════════════════════════════════${NC}"
+echo ""
+echo "Domain : $(cat /etc/xray/domain 2>/dev/null || echo unknown)"
+echo "Xray   : $(/usr/bin/xray version 2>/dev/null | head -1)"
+
+if [[ $FAIL -gt 0 ]]; then
+    echo ""
+    echo -e "${RED}Some critical checks failed.${NC}"
+    exit 1
+else
+    echo ""
+    echo -e "${GREEN}All critical checks passed.${NC} (${WARN} non-critical warnings)"
+    exit 0
+fi

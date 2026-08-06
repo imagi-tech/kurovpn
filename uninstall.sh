@@ -67,7 +67,10 @@ rm -f /usr/bin/Menu-WGF /usr/bin/nmenu /usr/bin/lmenu
 rm -f /usr/bin/bmenu /usr/bin/botmenu /usr/bin/dm-menu
 rm -f /usr/bin/addssh /usr/bin/add-l2tp /usr/bin/add-ssws
 rm -f /usr/bin/add-trojan /usr/bin/add-vless /usr/bin/add-vmess
-rm -f /usr/bin/backup /usr/bin/xp
+rm -f /usr/bin/backup /usr/bin/xp /usr/bin/kurovpn-verify
+
+# ── Remove library directory ───────────────────────────
+rm -rf /usr/lib/kurovpn
 
 # ── Remove configuration directories ───────────────────
 info "Removing configuration files..."
@@ -112,10 +115,12 @@ apt-get -y --purge remove wireguard wireguard-tools 2>/dev/null || true
 
 # ── Remove L2TP/IPsec packages ─────────────────────────
 info "Removing L2TP/IPsec..."
-apt-get -y --purge remove xl2tpd pptpd 2>/dev/null || true
-rm -rf /usr/local/lib/ipsec /usr/local/sbin/ipsec /usr/local/libexec/ipsec
-rm -f /etc/ipsec.conf /etc/ipsec.secrets /etc/xl2tpd/xl2tpd.conf
-rm -rf /etc/ipsec.d /etc/ppp/options.xl2tpd /etc/pptpd.conf /etc/ppp/options.pptpd
+apt-get -y --purge remove xl2tpd pptpd libreswan 2>/dev/null || true
+rm -rf /usr/local/lib/ipsec /usr/local/sbin/ipsec /usr/local/libexec/ipsec 2>/dev/null
+rm -f /etc/ipsec.conf /etc/ipsec.secrets /etc/xl2tpd/xl2tpd.conf 2>/dev/null
+rm -rf /etc/ipsec.d /etc/xl2tpd 2>/dev/null
+rm -f /etc/ppp/options.xl2tpd /etc/pptpd.conf /etc/ppp/options.pptpd 2>/dev/null
+rm -f /etc/systemd/system/multi-user.target.wants/ipsec.service 2>/dev/null
 
 # ── Clean iptables ─────────────────────────────────────
 info "Cleaning iptables rules..."

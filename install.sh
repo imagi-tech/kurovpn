@@ -83,7 +83,7 @@ install_commands() {
         "menu" "menu-ssh" "menu-xray" "menu-set"
         "Menu-WGF" "nmenu" "lmenu" "bmenu" "botmenu" "dm-menu"
         "addssh" "add-l2tp" "add-ssws" "add-trojan" "add-vless" "add-vmess"
-        "backup" "xp"
+        "backup" "xp" "kurovpn-verify"
     )
 
     for cmd in "${cmd_list[@]}"; do
