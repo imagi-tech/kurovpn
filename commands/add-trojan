@@ -1,0 +1,69 @@
+#!/bin/bash
+#
+#  KUROVPN -- VPN Auto-Installer & Manager
+#  https://github.com/imagi-tech/kurovpn
+#
+domain=$(cat /etc/xray/domain 2>/dev/null)
+clear
+echo -e "\n===================\n[  Create Trojan Account  ]\n===================\n"
+user=""
+while true; do
+    read -p "Username: " user
+    if [[ ! "$user" =~ ^[a-zA-Z0-9_]+$ ]]; then
+        echo "Error: Invalid username. Use alphanumeric characters only."
+        continue
+    fi
+    if grep -qw "$user" /etc/xray/config.json 2>/dev/null; then
+        echo "Error: Username '$user' already exists!"
+        continue
+    fi
+    break
+done
+until [[ $masaaktif =~ ^[0-9]+$ ]]; do
+    read -p "Active Time (days): " masaaktif
+done
+exp=`date -d "$masaaktif days" +"%y-%m-%d"`
+uuid=${user}
+sed -i '/#trojan$/a\### '"$user $exp"'\
+},{"password": "'""$uuid""'","email": "'""$user""'"' /etc/xray/config.json
+link1="trojan://${uuid}@${domain}:443?mode=gun&security=tls&authority=${domain}&type=grpc&serviceName=trojan-grpc&sni=${domain}#user"
+link2="trojan://${uuid}@${domain}:443?path=%2ftrojanws&security=tls&host=${domain}&type=ws&sni=${domain}#${user}"
+link3="trojan://${uuid}@${domain}:443?path=/dinda&security=tls&host=${domain}&type=httpupgrade&sni=${domain}#${user}"
+systemctl daemon-reload ; systemctl restart xray
+clear
+TEKS="
+============================
+[ Informasi X-Ray Trojan Account ]
+============================
+
+Remarks    : $user
+Hostname   : $domain
+WildCard   : bug.com.${domain}
+Expired    : $exp
+Password   : $uuid
+===========================
+WS HTTPS   : 443, 53
+WS HTTP    : 2082, 80
+Path WS    : /trojan | /trojanws
+Path HTTP : /dinda | /dindaputri
+ServiceName: trojan-grpc
+===========================
+WebSocket  : $link2
+===========================
+HTTP TLS   : $link3
+===========================
+gRPC       : $link1
+===========================
+"
+CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
+KEY=$(cat /etc/funny/.keybot 2>/dev/null)
+TIME="10"
+URL="https://api.telegram.org/bot$KEY/sendMessage"
+if [[ -n "$KEY" && -n "$CHATID" ]]; then
+    curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEKS&parse_mode=html" $URL >/dev/null
+fi
+clear
+echo "$TEKS"
+echo ""
+read -n 1 -s -r -p "Press any key to go back..."
+menu
