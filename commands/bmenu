@@ -5,29 +5,31 @@
 #
 #  Backup & Restore menu
 
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
+
 while true; do
 clear
-echo "========================="
-echo "   Backup & Restore"
-echo "========================="
-echo " 1) Create Backup"
-echo " 2) Restore from Local File"
-echo " 3) Telegram Bot Setup"
-echo " X) Back"
-read -p "Select: " opt
+ui_header "Backup & Restore" "Main › Settings › Backup"
+
+ui_item 1 "Create Backup"
+ui_item 2 "Restore from Local File"
+ui_item 3 "Telegram Bot Setup"
+
+echo ""
+ui_footer
+read -p "  Select: " opt
 case "$opt" in
     1) backup ;;
     2)
-        read -p "Path to backup file: " bfile
-        [[ ! -f "$bfile" ]] && { echo "File not found."; sleep 2; continue; }
-        read -p "Restore from $bfile? This overwrites current configs. [y/N]: " c
+        read -p "  Path to backup file: " bfile
+        [[ ! -f "$bfile" ]] && { echo "  File not found."; sleep 2; continue; }
+        read -p "  Restore from $bfile? This overwrites current configs. [y/N]: " c
         [[ "$c" != "y" ]] && continue
 
         tmp="/tmp/kurovpn-restore-$$"
         rm -rf "$tmp"; mkdir -p "$tmp"
-        tar xzf "$bfile" -C "$tmp" 2>/dev/null || { echo "Invalid backup."; rm -rf "$tmp"; sleep 2; continue; }
+        tar xzf "$bfile" -C "$tmp" 2>/dev/null || { echo "  Invalid backup."; rm -rf "$tmp"; sleep 2; continue; }
 
-        # Restore only KUROVPN-managed files
         [[ -d "$tmp/xray" ]] && cp -r "$tmp/xray" /etc/
         [[ -d "$tmp/kurovpn" ]] && cp -r "$tmp/kurovpn" /etc/
         [[ -d "$tmp/funny" ]] && cp -r "$tmp/funny" /etc/
@@ -39,8 +41,8 @@ case "$opt" in
 
         rm -rf "$tmp"
         systemctl restart xray nginx wg-quick@wg0 ipsec xl2tpd 2>/dev/null
-        echo "Restore complete."
-        read -n1 -s -r -p "Press any key..."
+        echo "  Restore complete."
+        read -n1 -s -r -p "  Press any key..."
         ;;
     3) botmenu ;;
     X|x) exit 0 ;;

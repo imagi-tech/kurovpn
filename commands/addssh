@@ -9,8 +9,10 @@ USERS_FILE="/etc/kurovpn/users.json"
 domain=$(cat /etc/xray/domain 2>/dev/null || echo "")
 PUBLIC_IP=$(curl -s ipinfo.io/ip 2>/dev/null || echo "")
 
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
+
 clear
-echo -e "\n===================\n[ Create SSH Account ]\n===================\n"
+ui_header "Create SSH Account" "SSH › New"
 
 while true; do
     read -p "Username  : " Login
@@ -57,25 +59,19 @@ if [[ -f "$USERS_FILE" ]]; then
 fi
 
 clear
-cat << EOF
-=========================
-[ SSH Account ]
-=========================
-Username   : ${Login}
-Password   : ${Pass}
-IP Limit   : ${iplimit}
-Expired    : ${exp}
-=========================
-Host       : ${domain:-$PUBLIC_IP}
-OpenSSH    : 22, 3303
-Dropbear   : 109, 111, 69
-WS TLS     : 443
-WS HTTP    : 80, 2082
-=========================
-Payload WS :
-GET / HTTP/1.1[crlf]Host: ${domain}[crlf]Upgrade: websocket[crlf][crlf]
-=========================
-EOF
+ui_card_begin "SSH Account"
+ui_kv "Username"  "${Login}"
+ui_kv "Password"  "${Pass}"
+ui_kv "IP Limit"  "${iplimit}"
+ui_kv "Expired"   "${exp}"
+ui_kv "Host"      "${domain:-$PUBLIC_IP}"
+ui_kv "OpenSSH"   "22, 3303"
+ui_kv "Dropbear"  "109, 111, 69"
+ui_kv "WS TLS"    "443"
+ui_kv "WS HTTP"   "80, 2082"
+ui_card_end
+echo -e "  ${CYAN}Payload WS:${NC}"
+echo -e "  GET / HTTP/1.1[crlf]Host: ${domain}[crlf]Upgrade: websocket[crlf][crlf]"
 if [[ -t 0 ]]; then
     read -n 1 -s -r -p "Press any key to continue..."
 fi

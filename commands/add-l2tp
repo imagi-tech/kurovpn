@@ -9,8 +9,10 @@ PSK="kurovpn-psk"
 USERS_FILE="/etc/kurovpn/users.json"
 PUBLIC_IP=$(curl -s ipinfo.io/ip 2>/dev/null || echo "")
 
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
+
 clear
-echo -e "\n===================\n[ Create L2TP Account ]\n===================\n"
+ui_header "Create L2TP Account" "L2TP › New"
 
 while true; do
     read -p "Username  : " VPN_USER
@@ -52,18 +54,13 @@ if [[ -f "$USERS_FILE" ]]; then
 fi
 
 clear
-cat << EOF
-=========================
-[ L2TP/IPsec Account ]
-=========================
-Username   : ${VPN_USER}
-Password   : ${VPN_PASS}
-PSK        : ${PSK}
-Expired    : ${exp}
-=========================
-Server IP  : ${PUBLIC_IP}
-=========================
-EOF
+ui_card_begin "L2TP/IPsec Account"
+ui_kv "Username"  "${VPN_USER}"
+ui_kv "Password"  "${VPN_PASS}"
+ui_kv "PSK"       "${PSK}"
+ui_kv "Expired"   "${exp}"
+ui_kv "Server IP" "${PUBLIC_IP}"
+ui_card_end
 if [[ -t 0 ]]; then
     read -n 1 -s -r -p "Press any key to continue..."
 fi

@@ -5,28 +5,27 @@
 #
 #  System management menu
 
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
+
 while true; do
 clear
-echo "==========================="
-echo "     System Settings"
-echo "==========================="
+ui_header "System Settings" "Main › Settings"
+
+ui_item 1  "Restart All Services"
+ui_item 2  "Restart Xray"
+ui_item 3  "Restart Nginx"
+ui_item 4  "Restart SSH / Dropbear"
+ui_item 5  "Speedtest"
+ui_item 6  "HTOP (Process Monitor)"
+ui_item 7  "Change Timezone"
+ui_item 8  "Backup & Restore"
+ui_item 9  "Domain / Cert Manager"
+ui_item 10 "Bandwidth Monitor (vnstat)"
+ui_item 11 "Uninstall KUROVPN"
+
 echo ""
-echo "  1) Restart All Services"
-echo "  2) Restart Xray"
-echo "  3) Restart Nginx"
-echo "  4) Restart SSH / Dropbear"
-echo "  5) Speedtest"
-echo "  6) HTOP (Process Monitor)"
-echo "  7) Change Timezone"
-echo ""
-echo "  8) Backup & Restore Menu"
-echo "  9) Domain / Cert Menu"
-echo " 10) Bandwidth Monitor (vnstat)"
-echo " 11) Uninstall KUROVPN"
-echo ""
-echo "  X) Back to Main Menu"
-echo ""
-read -p "Select: " opt
+ui_footer
+read -p "  Select: " opt
 
 case "$opt" in
     1)
@@ -37,28 +36,28 @@ case "$opt" in
         systemctl restart wg-quick@wg0 2>/dev/null
         systemctl restart xl2tpd ipsec pptpd 2>/dev/null
         systemctl restart edu badvpn 2>/dev/null
-        echo "All services restarted."
+        echo "  All services restarted."
         sleep 1
         ;;
-    2) systemctl restart xray && echo "Xray restarted." || echo "Failed."; sleep 1 ;;
-    3) systemctl restart nginx && echo "Nginx restarted." || echo "Failed."; sleep 1 ;;
-    4) systemctl restart sshd 2>/dev/null || systemctl restart ssh; systemctl restart dropbear; echo "SSH restarted."; sleep 1 ;;
-    5) speedtest 2>/dev/null || speedtest-cli 2>/dev/null; echo ""; read -n1 -s -r -p "Press any key..." ;;
+    2) systemctl restart xray && echo "  Xray restarted." || echo "  Failed."; sleep 1 ;;
+    3) systemctl restart nginx && echo "  Nginx restarted." || echo "  Failed."; sleep 1 ;;
+    4) systemctl restart sshd 2>/dev/null || systemctl restart ssh; systemctl restart dropbear; echo "  SSH restarted."; sleep 1 ;;
+    5) speedtest 2>/dev/null || speedtest-cli 2>/dev/null; echo ""; read -n1 -s -r -p "  Press any key..." ;;
     6) htop ;;
     7)
         echo ""
-        echo "Common timezones:"
-        echo "  Asia/Jakarta   America/New_York"
-        echo "  Asia/Singapore Europe/London"
-        echo "  Asia/Tokyo     UTC"
+        echo "  Common timezones:"
+        echo "    Asia/Jakarta   America/New_York"
+        echo "    Asia/Singapore Europe/London"
+        echo "    Asia/Tokyo     UTC"
         echo ""
-        read -p "Timezone: " tz
-        [[ -n "$tz" ]] && { timedatectl set-timezone "$tz" 2>/dev/null && echo "Timezone set to $tz" || echo "Invalid timezone."; }
+        read -p "  Timezone: " tz
+        [[ -n "$tz" ]] && { timedatectl set-timezone "$tz" 2>/dev/null && echo "  Timezone set → $tz" || echo "  Invalid timezone."; }
         sleep 2
         ;;
     8) bmenu ;;
     9) dm-menu ;;
-    10) vnstat 2>/dev/null || echo "vnstat not installed"; echo ""; read -n1 -s -r -p "Press any key..." ;;
+    10) vnstat 2>/dev/null || echo "vnstat not installed"; echo ""; read -n1 -s -r -p "  Press any key..." ;;
     11) /usr/bin/uninstall; exit 0 ;;
     X|x) clear; exit 0 ;;
 esac

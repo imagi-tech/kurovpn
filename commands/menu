@@ -5,41 +5,40 @@
 #
 #  Main dashboard menu
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-CYAN='\033[0;36m'; NC='\033[0m'
+source /usr/lib/kurovpn/ui.sh
 
 domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
 MYIP=$(curl -s ipinfo.io/ip 2>/dev/null || echo "unknown")
 
 while true; do
 clear
-echo -e "${CYAN}==================================================================${NC}"
-echo -e "${YELLOW}                      KUROVPN MAIN MENU                          ${NC}"
-echo -e "${CYAN}==================================================================${NC}"
-echo -e "  Domain : ${GREEN}${domain}${NC}"
-echo -e "  IP     : ${GREEN}${MYIP}${NC}"
-echo -e "${CYAN}------------------------------------------------------------------${NC}"
+ui_header "Main Menu" "Dashboard"
+
+# ── Server info ──────────────────────────────
+ui_kv "Domain" "$domain"
+ui_kv "IP"     "$MYIP"
 echo ""
 
-# Service status
-for svc in xray nginx dropbear edu "wg-quick@wg0" xl2tpd ipsec pptpd badvpn; do
-    if systemctl is-active --quiet "$svc" 2>/dev/null; then
-        icon="${GREEN}[RUNNING]${NC}"
-    else
-        icon="${RED}[STOPPED]${NC}"
-    fi
-    printf "  %-25s %s\n" "$svc" "$icon"
+# ── Service status ───────────────────────────
+ui_section "Services"
+for svc in xray nginx dropbear edu "wg-quick@wg0" xl2tpd ipsec pptpd badvpn hysteria; do
+    ui_running "$svc"
 done
 
 echo ""
-echo -e "${CYAN}------------------------------------------------------------------${NC}"
-echo -e " ${GREEN}1${NC}) SSH Menu        ${GREEN}5${NC}) WireGuard Menu"
-echo -e " ${GREEN}2${NC}) Xray Menu       ${GREEN}6${NC}) System Menu"
-echo -e " ${GREEN}3${NC}) L2TP Menu       ${GREEN}7${NC}) Bot / Backup"
-echo -e " ${GREEN}4${NC}) NoobZVPNS       ${GREEN}8${NC}) Domain & Cert"
-echo ""
-echo -e " ${RED}X${NC}) Exit"
-echo -e "${CYAN}==================================================================${NC}"
+# ── Menu options ─────────────────────────────
+ui_card_begin "Quick Access"
+_col1="1) SSH Menu         5) WireGuard"
+_col2="2) Xray Manager     6) System Menu"
+_col3="3) L2TP/IPsec       7) Bot & Backup"
+_col4="4) NoobZVPNS        8) Domain & Cert"
+_card_row "${GREEN}1)${NC} SSH Menu       ${GREEN}5)${NC} WireGuard"
+_card_row "${GREEN}2)${NC} Xray Manager   ${GREEN}6)${NC} System Menu"
+_card_row "${GREEN}3)${NC} L2TP/IPsec       ${GREEN}7)${NC} Bot & Backup"
+_card_row "${GREEN}4)${NC} NoobZVPNS          ${GREEN}8)${NC} Domain & Cert"
+ui_card_end
+
+ui_footer
 read -p "  Select [1-8]: " opt
 
 case "$opt" in

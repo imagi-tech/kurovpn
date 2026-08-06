@@ -7,13 +7,14 @@
 
 source /usr/lib/kurovpn/common.sh 2>/dev/null || true
 source /usr/lib/kurovpn/xray-clients.sh 2>/dev/null || true
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
 
 XRAY_CONFIG="/etc/xray/config.json"
 USERS_FILE="/etc/kurovpn/users.json"
 domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
 
 clear
-echo -e "\n===================\n[ Create Shadowsocks-2022 Account ]\n===================\n"
+ui_header "Create Shadowsocks-2022 Account" "Xray › New SS-2022"
 
 while true; do
     read -p "Username  : " user
@@ -40,21 +41,15 @@ encoded=$(echo -n "2022-blake3-aes-256-gcm:${key}" | base64 -w 0 2>/dev/null | t
 link="ss://${encoded}@${domain}:10010#${user}"
 
 clear
-cat << EOF
-=========================
-[ Shadowsocks-2022 Account ]
-=========================
-Remarks    : ${user}
-Host       : ${domain}
-Port       : 10010
-Method     : 2022-blake3-aes-256-gcm
-Password   : ${key}
-Expired    : ${exp}
-Network    : TCP, UDP
-=========================
-${link}
-=========================
-EOF
+ui_card_begin "Shadowsocks-2022 Account"
+ui_kv "Remarks"    "${user}"
+ui_kv "Host"       "${domain}"
+ui_kv "Port"       "10010 (TCP+UDP)"
+ui_kv "Method"     "2022-blake3-aes-256-gcm"
+ui_kv "Password"   "${key}"
+ui_kv "Expired"    "${exp}"
+ui_card_end
+echo -e "  ${link}"
 
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
 KEY=$(cat /etc/funny/.keybot 2>/dev/null)

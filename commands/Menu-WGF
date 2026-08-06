@@ -5,37 +5,39 @@
 #
 #  WireGuard Account Manager
 
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
 source /etc/wireguard/params 2>/dev/null
 USERS_FILE="/etc/kurovpn/users.json"
 domain=$(cat /etc/xray/domain 2>/dev/null)
 
 while true; do
 clear
-echo "========================="
-echo "   WireGuard Manager"
-echo "========================="
-echo " 1) Create Client"
-echo " 2) List Clients"
-echo " 3) Delete Client"
-echo " 4) Show Client Config"
-echo " X) Back"
-read -p "Select: " opt
+ui_header "WireGuard Manager" "Main › WireGuard"
+
+ui_item 1 "Create Client"
+ui_item 2 "List Clients"
+ui_item 3 "Delete Client"
+ui_item 4 "Show Client Config"
+
+echo ""
+ui_footer
+read -p "  Select: " opt
 
 case "$opt" in
     1)
         clear
-        read -p "Client Name: " CLIENT_NAME
+        ui_header "Create WireGuard Client"
+        read -p "  Client Name: " CLIENT_NAME
         [[ -z "$CLIENT_NAME" ]] && continue
-        [[ "$CLIENT_NAME" =~ ^[a-zA-Z0-9_]+$ ]] || { echo "Invalid name."; sleep 1; continue; }
-        read -p "Days       : " days
-        [[ ! "$days" =~ ^[0-9]+$ ]] && { echo "Invalid."; sleep 1; continue; }
+        [[ "$CLIENT_NAME" =~ ^[a-zA-Z0-9_]+$ ]] || { echo "  Invalid name."; sleep 1; continue; }
+        read -p "  Days       : " days
+        [[ ! "$days" =~ ^[0-9]+$ ]] && { echo "  Invalid."; sleep 1; continue; }
 
         exp=$(date -d "$days days" +%Y-%m-%d)
         CLIENT_PRIV_KEY=$(wg genkey)
         CLIENT_PUB_KEY=$(echo "$CLIENT_PRIV_KEY" | wg pubkey)
         CLIENT_IP="10.66.66.$(( ($(grep -c '###' /etc/wireguard/wg0.conf 2>/dev/null || echo 0) + 2) ))"
 
-        # Add to wg0.conf
         cat >> /etc/wireguard/wg0.conf << EOF
 
 ### ${CLIENT_NAME} ${exp}
@@ -44,7 +46,6 @@ PublicKey = ${CLIENT_PUB_KEY}
 AllowedIPs = ${CLIENT_IP}/32
 EOF
 
-        # Create client config
         cat > /etc/wireguard/clients/${CLIENT_NAME}.conf << EOF
 [Interface]
 PrivateKey = ${CLIENT_PRIV_KEY}
@@ -58,10 +59,8 @@ AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 EOF
 
-        # Track expiry
         echo "### ${CLIENT_NAME} ${exp}" >> /etc/funny/.wg
 
-        # Users DB
         [[ -f "$USERS_FILE" ]] && {
             t="${USERS_FILE}.tmp.$$"
             jq --arg u "$CLIENT_NAME" --arg e "$exp" --arg c "$(date +%Y-%m-%d)" \
@@ -71,29 +70,31 @@ EOF
 
         systemctl restart wg-quick@wg0 2>/dev/null
         clear
+        ui_card_begin "WireGuard Client"
         cat /etc/wireguard/clients/${CLIENT_NAME}.conf
-        echo ""; read -n1 -s -r -p "Press any key..."
+        ui_card_end
+        read -n1 -s -r -p "  Press any key..."
         ;;
     2)
         clear
-        echo "WireGuard Clients:"
+        ui_header "WireGuard Clients"
         grep '^###' /etc/wireguard/wg0.conf 2>/dev/null | awk '{printf "  %-15s exp: %s\n", $2, $3}'
-        echo ""; read -n1 -s -r -p "Press any key..."
+        echo ""; read -n1 -s -r -p "  Press any key..."
         ;;
     3)
-        read -p "Client to delete: " name
+        read -p "  Client to delete: " name
         [[ -z "$name" ]] && continue
         sed -i "/^### $name /,/^$/d" /etc/wireguard/wg0.conf 2>/dev/null
         rm -f /etc/wireguard/clients/${name}.conf
         sed -i "/^### $name/d" /etc/funny/.wg 2>/dev/null
         [[ -f "$USERS_FILE" ]] && { t="${USERS_FILE}.tmp.$$"; jq --arg u "$name" '.wireguard |= map(select(.user != $u))' "$USERS_FILE" > "$t"; mv "$t" "$USERS_FILE"; chmod 600 "$USERS_FILE"; }
         systemctl restart wg-quick@wg0 2>/dev/null
-        echo "Deleted: $name"; read -n1 -s -r -p "Press any key..."
+        echo "  Deleted: $name"; read -n1 -s -r -p "  Press any key..."
         ;;
     4)
-        read -p "Client name: " name
-        [[ -f /etc/wireguard/clients/${name}.conf ]] && { clear; cat /etc/wireguard/clients/${name}.conf; } || echo "Not found."
-        echo ""; read -n1 -s -r -p "Press any key..."
+        read -p "  Client name: " name
+        [[ -f /etc/wireguard/clients/${name}.conf ]] && { clear; ui_card_begin "WireGuard Config"; cat /etc/wireguard/clients/${name}.conf; ui_card_end; } || echo "  Not found."
+        read -n1 -s -r -p "  Press any key..."
         ;;
     X|x) exit 0 ;;
 esac

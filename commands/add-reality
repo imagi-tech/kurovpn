@@ -7,6 +7,7 @@
 
 source /usr/lib/kurovpn/common.sh 2>/dev/null || true
 source /usr/lib/kurovpn/xray-clients.sh 2>/dev/null || true
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
 
 XRAY_CONFIG="/etc/xray/config.json"
 USERS_FILE="/etc/kurovpn/users.json"
@@ -14,7 +15,7 @@ REALITY_PUBFILE="/etc/xray/reality-pub"
 domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
 
 clear
-echo -e "\n===================\n[ Create Reality Account ]\n===================\n"
+ui_header "Create Reality Account" "Xray › New Reality"
 
 while true; do
     read -p "Username  : " user
@@ -49,23 +50,18 @@ users_add "reality" "$user" "$exp" "\"uuid\":\"$uuid\""
 link="vless://${uuid}@${domain}:8443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${domain}&fp=chrome&pbk=${pubkey}&sid=${shortid}&type=tcp#${user}"
 
 clear
-cat << EOF
-=========================
-[ Reality Account ]
-=========================
-Remarks    : ${user}
-Host/SNI   : ${domain}
-UUID       : ${uuid}
-Flow       : xtls-rprx-vision
-Security   : reality
-Port       : 8443
-Public Key : ${pubkey}
-Short ID   : ${shortid}
-Expired    : ${exp}
-=========================
-${link}
-=========================
-EOF
+ui_card_begin "VLESS-Reality Account"
+ui_kv "Remarks"    "${user}"
+ui_kv "Host/SNI"   "${domain}"
+ui_kv "UUID"       "${uuid}"
+ui_kv "Flow"       "xtls-rprx-vision"
+ui_kv "Security"   "reality"
+ui_kv "Port"       "8443"
+ui_kv "Public Key" "${pubkey}"
+ui_kv "Short ID"   "${shortid}"
+ui_kv "Expired"    "${exp}"
+ui_card_end
+echo -e "  ${link}\n"
 
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
 KEY=$(cat /etc/funny/.keybot 2>/dev/null)

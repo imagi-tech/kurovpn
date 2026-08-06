@@ -5,19 +5,18 @@
 #
 #  Telegram Bot Setup
 
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 clear
-echo "========================="
-echo "   Telegram Bot Setup"
-echo "========================="
-echo ""
+ui_header "Telegram Bot Setup" "Settings › Bot"
 
-read -p "Bot Token    : " TOKEN
-[[ -z "$TOKEN" ]] && { echo "Token required."; exit 0; }
+read -p "  Bot Token    : " TOKEN
+[[ -z "$TOKEN" ]] && { echo "  Token required."; exit 0; }
 
-read -p "Admin Chat ID: " CHATID
-[[ -z "$CHATID" ]] && { echo "Chat ID required."; exit 0; }
+read -p "  Admin Chat ID: " CHATID
+[[ -z "$CHATID" ]] && { echo "  Chat ID required."; exit 0; }
 
 # Save credentials
 mkdir -p /etc/funny
@@ -26,15 +25,15 @@ echo "$CHATID" > /etc/funny/.chatid
 chmod 600 /etc/funny/.keybot /etc/funny/.chatid
 
 echo ""
-echo "Credentials saved."
+echo "  Credentials saved."
 echo ""
 
 # Validate token
 BOT_USERNAME=$(curl -s --max-time 10 "https://api.telegram.org/bot${TOKEN}/getMe" 2>/dev/null | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
 if [[ -n "$BOT_USERNAME" ]]; then
-    echo "Token valid — bot @${BOT_USERNAME}"
+    echo "  Token valid — bot @${BOT_USERNAME}"
 else
-    echo "WARNING: Could not validate token. Check your token and try again."
+    echo "  WARNING: Could not validate token. Check your token and try again."
 fi
 
 # Ensure bot.py is deployed
@@ -46,12 +45,12 @@ if [[ ! -f "$BOT_DEST" ]]; then
     elif [[ -f "/root/kurovpn/Plugin/bot.py" ]]; then
         cp "/root/kurovpn/Plugin/bot.py" "$BOT_DEST"
     else
-        echo "ERROR: bot.py not found. Re-run install.sh to deploy it."
-        read -n1 -s -r -p "Press any key..."
+        echo "  ERROR: bot.py not found. Re-run install.sh to deploy it."
+        read -n1 -s -r -p "  Press any key..."
         exit 1
     fi
     chmod +x "$BOT_DEST"
-    echo "Deployed bot.py → $BOT_DEST"
+    echo "  Deployed bot.py → $BOT_DEST"
 fi
 
 # Create systemd service
@@ -83,12 +82,12 @@ systemctl restart kurovpn-bot 2>/dev/null || true
 sleep 2
 echo ""
 if systemctl is-active --quiet kurovpn-bot; then
-    echo "Bot is running. Send /start in Telegram."
+    echo "  Bot is running. Send /start in Telegram."
 else
-    echo "Bot failed to start. Last log entries:"
+    echo "  Bot failed to start. Last log entries:"
     journalctl -u kurovpn-bot -n 15 --no-pager 2>/dev/null
 fi
 
 echo ""
-read -n1 -s -r -p "Press any key..."
+read -n1 -s -r -p "  Press any key..."
 menu

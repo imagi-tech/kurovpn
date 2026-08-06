@@ -7,13 +7,14 @@
 
 source /usr/lib/kurovpn/common.sh 2>/dev/null || true
 source /usr/lib/kurovpn/xray-clients.sh 2>/dev/null || true
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
 
 XRAY_CONFIG="/etc/xray/config.json"
 USERS_FILE="/etc/kurovpn/users.json"
 domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
 
 clear
-echo -e "\n===================\n[ Create VLess Account ]\n===================\n"
+ui_header "Create VLess Account" "Xray › New VLess"
 
 while true; do
     read -p "Username  : " user
@@ -41,23 +42,21 @@ link_grpc="vless://${uuid}@${domain}:443?path=vless-grpc&security=tls&encryption
 link_http="vless://${uuid}@${domain}:80?path=/rere&security=none&encryption=none&type=httpupgrade&host=${domain}#${user}"
 
 clear
-cat << EOF
-=========================
-[ Xray VLess Account ]
-=========================
-Remarks    : ${user}
-Host/SNI   : ${domain}
-UUID       : ${uuid}
-Expired    : ${exp}
-=========================
-Port       : 443, 53, 2095
-Network    : WS, gRPC, HTTPUpgrade
-=========================
-WS        : ${link_ws}
-gRPC      : ${link_grpc}
-HTTPUpgr  : ${link_http}
-=========================
-EOF
+ui_card_begin "Xray VLess Account"
+ui_kv "Remarks"     "${user}"
+ui_kv "Host/SNI"    "${domain}"
+ui_kv "UUID"        "${uuid}"
+ui_kv "Expired"     "${exp}"
+ui_kv "Port TLS"    "443, 53, 2095"
+ui_kv "Port HTTP"   "80, 2082"
+ui_kv "Network"     "WS, gRPC, HTTPUpgrade"
+ui_kv "Path WS"     "/vless"
+ui_kv "ServiceName" "vless-grpc"
+ui_card_end
+echo -e "  TLS  : ${link1}"
+echo -e "  HTTP : ${link2}"
+echo -e "  gRPC : ${link3}"
+echo ""
 
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
 KEY=$(cat /etc/funny/.keybot 2>/dev/null)

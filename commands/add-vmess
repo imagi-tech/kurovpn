@@ -7,13 +7,14 @@
 
 source /usr/lib/kurovpn/common.sh 2>/dev/null || true
 source /usr/lib/kurovpn/xray-clients.sh 2>/dev/null || true
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
 
 XRAY_CONFIG="/etc/xray/config.json"
 USERS_FILE="/etc/kurovpn/users.json"
 domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
 
 clear
-echo -e "\n===================\n[ Create VMess Account ]\n===================\n"
+ui_header "Create VMess Account" "Xray › New VMess"
 
 # Username
 while true; do
@@ -58,26 +59,21 @@ link3="vmess://$(base64 -w 0 < /tmp/vmess_grpc.json)"
 rm -f /tmp/vmess_*.json
 
 clear
-cat << EOF
-=========================
-[ Xray VMess Account ]
-=========================
-Remarks    : ${user}
-Host/SNI   : ${domain}
-UUID       : ${uuid}
-Expired    : ${exp}
-=========================
-Port TLS   : 443, 53, 2095
-Port HTTP  : 80, 2082
-Network    : WS, gRPC, HTTPUpgrade
-Path WS    : /vmess
-ServiceName: vmess-grpc
-=========================
-TLS  : ${link1}
-None : ${link2}
-gRPC : ${link3}
-=========================
-EOF
+ui_card_begin "Xray VMess Account"
+ui_kv "Remarks"     "${user}"
+ui_kv "Host/SNI"    "${domain}"
+ui_kv "UUID"        "${uuid}"
+ui_kv "Expired"     "${exp}"
+ui_kv "Port TLS"    "443, 53, 2095"
+ui_kv "Port HTTP"   "80, 2082"
+ui_kv "Network"     "WS, gRPC, HTTPUpgrade"
+ui_kv "Path WS"     "/vmess"
+ui_kv "ServiceName" "vmess-grpc"
+ui_card_end
+echo -e "  TLS  : ${link1}"
+echo -e "  HTTP : ${link2}"
+echo -e "  gRPC : ${link3}"
+echo ""
 
 # Telegram notification
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)

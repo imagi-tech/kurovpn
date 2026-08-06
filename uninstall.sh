@@ -15,12 +15,16 @@ NC='\033[0m'
 info() { echo -e "${GREEN}[INFO]${NC} $*"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
+
 [[ $EUID -eq 0 ]] || { echo "Must run as root"; exit 1; }
 
 echo ""
-echo -e "${RED}============================================${NC}"
-echo -e "${RED}  KUROVPN UNINSTALLER${NC}"
-echo -e "${RED}============================================${NC}"
+ui_header "Uninstall" "Main › Settings › Uninstall" 2>/dev/null || {
+    echo -e "${RED}============================================${NC}"
+    echo -e "${RED}  KUROVPN UNINSTALLER${NC}"
+    echo -e "${RED}============================================${NC}"
+}
 echo ""
 echo -e "This will remove ALL KUROVPN components:"
 echo -e "  - SSH/Dropbear port changes"

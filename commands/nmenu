@@ -5,58 +5,60 @@
 #
 #  NoobZVPNS Account Manager
 
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
 USERS_FILE="/etc/kurovpn/users.json"
 
 list_noobz() {
     clear
-    echo "========================="
-    echo "   NoobZVPNS Users"
-    echo "========================="
+    ui_header "NoobZVPNS Users"
     if [[ -x /usr/bin/noobzvpns ]]; then
-        /usr/bin/noobzvpns --info-all-user 2>/dev/null || echo "No users yet."
+        /usr/bin/noobzvpns --info-all-user 2>/dev/null || echo "  No users yet."
     else
-        echo "NoobZVPNS is not installed."
+        echo "  NoobZVPNS is not installed."
     fi
-    echo ""; read -n1 -s -r -p "Press any key..."
+    echo ""; read -n1 -s -r -p "  Press any key..."
 }
 
 add_noobz() {
     clear
+    ui_header "Create NoobZVPNS Account"
     if [[ ! -x /usr/bin/noobzvpns ]]; then
-        echo "NoobZVPNS is not installed. Skipping."
-        read -n1 -s -r -p "Press any key..."
+        echo "  NoobZVPNS is not installed."
+        read -n1 -s -r -p "  Press any key..."
         return
     fi
-    read -p "Username  : " user
-    read -s -p "Password  : " pass; echo
-    read -p "Days      : " days
-    [[ -z "$user" || -z "$pass" || ! "$days" =~ ^[0-9]+$ ]] && { echo "Invalid input."; read -n1; return; }
-    /usr/bin/noobzvpns --add-user "$user" "$pass" "$days" 2>/dev/null && echo "Added: $user" || echo "Failed."
-    read -n1 -s -r -p "Press any key..."
+    read -p "  Username  : " user
+    read -s -p "  Password  : " pass; echo
+    read -p "  Days      : " days
+    [[ -z "$user" || -z "$pass" || ! "$days" =~ ^[0-9]+$ ]] && { echo "  Invalid input."; read -n1; return; }
+    /usr/bin/noobzvpns --add-user "$user" "$pass" "$days" 2>/dev/null && echo "  Added: $user" || echo "  Failed."
+    read -n1 -s -r -p "  Press any key..."
 }
 
 del_noobz() {
     clear
-    if [[ ! -x /usr/bin/noobzvpns ]]; then echo "Not installed."; read -n1; return; fi
-    read -p "Username to delete: " user
-    /usr/bin/noobzvpns --remove-user "$user" 2>/dev/null && echo "Deleted: $user" || echo "Failed."
-    read -n1 -s -r -p "Press any key..."
+    ui_header "Delete NoobZVPNS User"
+    if [[ ! -x /usr/bin/noobzvpns ]]; then echo "  Not installed."; read -n1; return; fi
+    read -p "  Username to delete: " user
+    /usr/bin/noobzvpns --remove-user "$user" 2>/dev/null && echo "  Deleted: $user" || echo "  Failed."
+    read -n1 -s -r -p "  Press any key..."
 }
 
 while true; do
 clear
-echo "========================="
-echo "   NoobZVPNS Manager"
-echo "========================="
+ui_header "NoobZVPNS Manager" "Main › NoobZVPNS"
+
 if [[ -x /usr/bin/noobzvpns ]]; then
-    echo " 1) Create Account"
-    echo " 2) List Users"
-    echo " 3) Delete User"
+    ui_item 1 "Create Account"
+    ui_item 2 "List Users"
+    ui_item 3 "Delete User"
 else
-    echo " [NoobZVPNS not installed]"
+    echo "  [NoobZVPNS not installed]"
 fi
-echo " X) Back"
-read -p "Select: " opt
+
+echo ""
+ui_footer
+read -p "  Select: " opt
 case "$opt" in
     1) add_noobz ;;
     2) list_noobz ;;

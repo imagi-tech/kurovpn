@@ -5,58 +5,60 @@
 #
 #  L2TP/IPsec Account Manager
 
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
 USERS_FILE="/etc/kurovpn/users.json"
 
 list_l2tp() {
     clear
-    echo "========================="
-    echo "   L2TP/IPsec Users"
-    echo "========================="
-    printf "%-15s %-12s\n" "Username" "Expired"
-    echo "-------------------------"
-    grep '^###' /etc/funny/.l2tp 2>/dev/null | awk '{printf "%-15s %-12s\n", $2, $3}'
-    echo ""; read -n1 -s -r -p "Press any key..."
+    ui_header "L2TP/IPsec Users List"
+    printf "  %-15s %-12s\n" "Username" "Expired"
+    echo  "  $(printf '%.s─' {1..28})"
+    grep '^###' /etc/funny/.l2tp 2>/dev/null | awk '{printf "  %-15s %-12s\n", $2, $3}'
+    echo ""; read -n1 -s -r -p "  Press any key..."
 }
 
 del_l2tp() {
     clear
-    read -p "Username to delete: " user
+    ui_header "Delete L2TP User"
+    read -p "  Username to delete: " user
     [[ -z "$user" ]] && return
-    read -p "Delete '$user'? [y/N]: " c
+    read -p "  Delete '$user'? [y/N]: " c
     [[ "$c" != "y" ]] && return
     sed -i "/^\"$user\" l2tpd/d" /etc/ppp/chap-secrets 2>/dev/null
     sed -i "/^$user:\$1\$/d" /etc/ipsec.d/passwd 2>/dev/null
     sed -i "/^### $user/d" /etc/funny/.l2tp 2>/dev/null
     [[ -f "$USERS_FILE" ]] && { t="${USERS_FILE}.tmp.$$"; jq --arg u "$user" '.l2tp |= map(select(.user != $u))' "$USERS_FILE" > "$t"; mv "$t" "$USERS_FILE"; chmod 600 "$USERS_FILE"; }
     chmod 600 /etc/ppp/chap-secrets /etc/ipsec.d/passwd 2>/dev/null
-    echo "Deleted: $user"
-    read -n1 -s -r -p "Press any key..."
+    echo "  Deleted: $user"
+    read -n1 -s -r -p "  Press any key..."
 }
 
 renew_l2tp() {
     clear
-    read -p "Username: " user
-    read -p "Add days: " days
-    [[ ! "$days" =~ ^[0-9]+$ ]] && { echo "Invalid"; read -n1; return; }
+    ui_header "Renew L2TP User"
+    read -p "  Username: " user
+    read -p "  Add days: " days
+    [[ ! "$days" =~ ^[0-9]+$ ]] && { echo "  Invalid"; read -n1; return; }
     local old=$(grep "^### $user " /etc/funny/.l2tp | awk '{print $3}')
-    [[ -z "$old" ]] && { echo "Not found"; read -n1; return; }
+    [[ -z "$old" ]] && { echo "  Not found"; read -n1; return; }
     local new=$(date -d "$old + $days days" +%Y-%m-%d)
     sed -i "s/^### $user .*/### $user $new/" /etc/funny/.l2tp
-    echo "Renewed: $user -> $new"
-    read -n1 -s -r -p "Press any key..."
+    echo "  Renewed: $user → $new"
+    read -n1 -s -r -p "  Press any key..."
 }
 
 while true; do
 clear
-echo "========================="
-echo "   L2TP/IPsec Manager"
-echo "========================="
-echo " 1) Create Account"
-echo " 2) List Users"
-echo " 3) Delete User"
-echo " 4) Renew User"
-echo " X) Back"
-read -p "Select: " opt
+ui_header "L2TP/IPsec Manager" "Main › L2TP"
+
+ui_item 1 "Create Account"
+ui_item 2 "List Users"
+ui_item 3 "Delete User"
+ui_item 4 "Renew User"
+
+echo ""
+ui_footer
+read -p "  Select: " opt
 case "$opt" in
     1) add-l2tp ;;
     2) list_l2tp ;;

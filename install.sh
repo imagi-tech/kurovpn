@@ -98,6 +98,12 @@ install_commands() {
         fi
     done
 
+    # Install UI library
+    if [[ -f "$SCRIPT_DIR/lib/ui.sh" ]]; then
+        cp "$SCRIPT_DIR/lib/ui.sh" "/usr/lib/kurovpn/ui.sh"
+        chmod 644 "/usr/lib/kurovpn/ui.sh"
+    fi
+
     # Install Xray client management library
     if [[ -f "$SCRIPT_DIR/lib/xray-clients.sh" ]]; then
         cp "$SCRIPT_DIR/lib/xray-clients.sh" "/usr/lib/kurovpn/xray-clients.sh"

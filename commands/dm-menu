@@ -5,45 +5,47 @@
 #
 #  Domain & Certificate manager
 
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
+
 while true; do
 clear
 domain=$(cat /etc/xray/domain 2>/dev/null || echo "not set")
-echo "========================="
-echo "   Domain & Certificate"
-echo "========================="
+ui_header "Domain & Certificate" "Main › Domain"
+
+ui_kv "Current Domain" "$domain"
 echo ""
-echo "  Current: $domain"
+
+ui_item 1 "Set Domain Manually"
+ui_item 2 "Renew Certificate"
+ui_item 3 "Cloudflare Auto DNS"
+
 echo ""
-echo "  1) Set Domain Manually"
-echo "  2) Renew Certificate"
-echo "  3) Cloudflare Auto DNS (requires CF API key)"
-echo ""
-echo "  X) Back"
-read -p "Select: " opt
+ui_footer
+read -p "  Select: " opt
 
 case "$opt" in
     1)
-        read -p "New domain: " newdom
-        [[ -n "$newdom" ]] && { echo "$newdom" > /etc/xray/domain; echo "Domain set to $newdom"; }
+        read -p "  New domain: " newdom
+        [[ -n "$newdom" ]] && { echo "$newdom" > /etc/xray/domain; echo "  Domain set → $newdom"; }
         sleep 1
         ;;
     2)
         dom=$(cat /etc/xray/domain 2>/dev/null)
-        [[ -z "$dom" ]] && { echo "No domain set."; sleep 2; continue; }
-        echo "Renewing cert for $dom..."
+        [[ -z "$dom" ]] && { echo "  No domain set."; sleep 2; continue; }
+        echo "  Renewing certificate for $dom..."
         systemctl stop nginx 2>/dev/null
         /root/.acme.sh/acme.sh --issue -d "$dom" --standalone -k ec-256 2>&1
         /root/.acme.sh/acme.sh --installcert -d "$dom" --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
         systemctl restart nginx
-        echo "Done."
-        read -n1 -s -r -p "Press any key..."
+        echo "  Done."
+        read -n1 -s -r -p "  Press any key..."
         ;;
     3)
         echo ""
-        read -p "Cloudflare Email  : " CF_ID
-        read -s -p "Cloudflare Key    : " CF_KEY; echo
-        read -p "Base Domain       : " BASEDOM
-        [[ -z "$CF_ID" || -z "$CF_KEY" || -z "$BASEDOM" ]] && { echo "All fields required."; sleep 2; continue; }
+        read -p "  Cloudflare Email  : " CF_ID
+        read -s -p "  Cloudflare Key    : " CF_KEY; echo
+        read -p "  Base Domain       : " BASEDOM
+        [[ -z "$CF_ID" || -z "$CF_KEY" || -z "$BASEDOM" ]] && { echo "  All fields required."; sleep 2; continue; }
         IP=$(curl -s ipinfo.io/ip 2>/dev/null)
         SUB=$(tr </dev/urandom -dc a-z0-9 | head -c7)
         DNS="${SUB}.${BASEDOM}"
@@ -54,13 +56,13 @@ case "$opt" in
             curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records" -H "X-Auth-Email: ${CF_ID}" -H "X-Auth-Key: ${CF_KEY}" -H "Content-Type: application/json" --data "{\"type\":\"A\",\"name\":\"${DNS}\",\"content\":\"${IP}\",\"ttl\":120,\"proxied\":false}" >/dev/null
         fi
         echo "$DNS" > /etc/xray/domain
-        echo "Domain set: $DNS"
+        echo "  Domain set: $DNS"
         systemctl stop nginx 2>/dev/null
         /root/.acme.sh/acme.sh --issue -d "$DNS" --standalone -k ec-256
         /root/.acme.sh/acme.sh --installcert -d "$DNS" --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
         systemctl restart nginx
-        echo "Done."
-        read -n1 -s -r -p "Press any key..."
+        echo "  Done."
+        read -n1 -s -r -p "  Press any key..."
         ;;
     X|x) exit 0 ;;
 esac

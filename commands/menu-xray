@@ -5,9 +5,7 @@
 #
 #  Xray Account Manager (VMess / VLess / Trojan / Shadowsocks)
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
-
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
 source /usr/lib/kurovpn/xray-clients.sh 2>/dev/null || true
 source /usr/lib/kurovpn/hysteria-clients.sh 2>/dev/null || true
 XRAY_CONFIG="/etc/xray/config.json"
@@ -16,34 +14,31 @@ USERS_FILE="/etc/kurovpn/users.json"
 # ── List xray users ────────────────────────────────────
 list_users() {
     clear
-    echo -e "${CYAN}=========================${NC}"
-    echo -e "${YELLOW}  Xray Users List${NC}"
-    echo -e "${CYAN}=========================${NC}"
-    echo ""
+    ui_header "Xray Users List"
 
     local proto="$1"
     local header="USERNAME" found=0
 
     case "$proto" in
-        vmess) echo -e "${GREEN}[ VMess ]${NC}" ;;
-        vless) echo -e "${GREEN}[ VLess ]${NC}" ;;
-        trojan) echo -e "${GREEN}[ Trojan ]${NC}" ;;
-        ss) echo -e "${GREEN}[ Shadowsocks ]${NC}" ;;
-        reality) echo -e "${GREEN}[ VLESS-Reality ]${NC}" ;;
-        ss2022) echo -e "${GREEN}[ Shadowsocks-2022 ]${NC}" ;;
-        hysteria2) echo -e "${GREEN}[ Hysteria2 ]${NC}" ;;
-        all) echo -e "${GREEN}[ All Protocols ]${NC}" ;;
+        vmess)    ui_section "VMess" ;;
+        vless)    ui_section "VLess" ;;
+        trojan)   ui_section "Trojan" ;;
+        ss)       ui_section "Shadowsocks" ;;
+        reality)  ui_section "VLESS-Reality" ;;
+        ss2022)   ui_section "Shadowsocks-2022" ;;
+        hysteria2)ui_section "Hysteria2" ;;
+        all)      ui_section "All Protocols" ;;
     esac
 
-    printf "%-15s %-12s %s\n" "Username" "Expiry" "UUID/Password"
-    echo "------------------------------------------"
+    printf "  %-15s %-12s %s\n" "Username" "Expiry" "UUID/Password"
+    echo  "  $(printf '%.s─' {1..42})"
 
     if [[ -f "$USERS_FILE" ]]; then
         if [[ "$proto" == "all" ]]; then
             for p in vmess vless trojan shadowsocks reality ss2022 hysteria2; do
                 jq -r ".\"$p\"[]? | \"$p  \(.user) \(.exp) \(.uuid // .password)\"" "$USERS_FILE" 2>/dev/null | \
                 while read ptype u e uid; do
-                    printf "%-15s %-12s %s\n" "$ptype:$u" "$e" "$uid"
+                    printf "  %-15s %-12s %s\n" "$ptype:$u" "$e" "$uid"
                     found=1
                 done
             done
@@ -52,27 +47,27 @@ list_users() {
             [[ "$proto" == "ss" ]] && pname="shadowsocks"
             jq -r ".\"$pname\"[]? | \"\(.user) \(.exp) \(.uuid // .password)\"" "$USERS_FILE" 2>/dev/null | \
             while read u e uid; do
-                printf "%-15s %-12s %s\n" "$u" "$e" "$uid"
+                printf "  %-15s %-12s %s\n" "$u" "$e" "$uid"
                 found=1
             done
         fi
     fi
-    [[ "$found" -eq 0 ]] && echo "No users found."
+    [[ "$found" -eq 0 ]] && echo "  No users found."
+    echo ""
+    read -n 1 -s -r -p "  Press any key..."
 }
 
 # ── Delete a user ──────────────────────────────────────
 del_user() {
     clear
-    echo -e "${CYAN}=========================${NC}"
-    echo -e "${YELLOW}  Delete Xray User${NC}"
-    echo -e "${CYAN}=========================${NC}"
+    ui_header "Delete Xray User" "Xray Manager › Delete"
     echo ""
-    echo "1) VMess       3) Trojan"
-    echo "2) VLess       4) Shadowsocks"
-    echo "5) Reality     6) SS-2022"
-    echo "7) Hysteria2"
+    ui_item 1 "VMess"      ; ui_item 5 "Reality"
+    ui_item 2 "VLess"      ; ui_item 6 "SS-2022"
+    ui_item 3 "Trojan"     ; ui_item 7 "Hysteria2"
+    ui_item 4 "Shadowsocks"
     echo ""
-    read -p "Protocol [1-7]: " proto_choice
+    read -p "  Protocol [1-7]: " proto_choice
     case "$proto_choice" in
         1) local proto="vmess" field="id" db="vmess" ;;
         2) local proto="vless" field="id" db="vless" ;;
@@ -81,41 +76,41 @@ del_user() {
         5) local proto="reality" field="id" db="reality" ;;
         6) local proto="ss2022" field="password" db="ss2022" ;;
         7) local proto="hysteria2" field="password" db="hysteria2" ;;
-        *) echo "Invalid."; return ;; 
+        *) echo "  Invalid."; return ;;
     esac
 
-    read -p "Username to delete: " user
+    read -p "  Username to delete: " user
     [[ -z "$user" ]] && return
 
-    # Get user id/password for deletion
     local val
     val=$(jq -r --arg u "$user" ".\"$db\"[] | select(.user==\$u) | .uuid // .password" "$USERS_FILE" 2>/dev/null)
-    [[ -z "$val" ]] && { echo "User '$user' not found."; read -n1; return; }
+    [[ -z "$val" ]] && { echo "  User '$user' not found."; read -n1; return; }
 
-     read -p "Delete '$user'? [y/N]: " confirm
-     [[ "$confirm" != "y" && "$confirm" != "Y" ]] && return
+    read -p "  Delete '$user'? [y/N]: " confirm
+    [[ "$confirm" != "y" && "$confirm" != "Y" ]] && return
 
-     case "$proto" in
-         ss2022)    xray_del_ss2022_client "$val" ;;
-         hysteria2) hy_del_user "$user" ;;
-         *)         xray_del_client "$proto" "$field" "$val" ;;
-     esac
-     users_del "$db" "$user"
-    echo "Deleted: $user"
-    read -n 1 -s -r -p "Press any key..."
+    case "$proto" in
+        ss2022)    xray_del_ss2022_client "$val" ;;
+        hysteria2) hy_del_user "$user" ;;
+        *)         xray_del_client "$proto" "$field" "$val" ;;
+    esac
+    users_del "$db" "$user"
+    echo "  Deleted: $user"
+    read -n 1 -s -r -p "  Press any key..."
 }
 
 # ── Renew a user ───────────────────────────────────────
 renew_user() {
     clear
-    read -p "Protocol (vmess/vless/trojan/ss/reality/ss2022/hysteria2): " proto
-    read -p "Username: " user
+    ui_header "Renew User" "Xray Manager › Renew"
+    read -p "  Protocol (vmess/vless/trojan/ss/reality/ss2022/hysteria2): " proto
+    read -p "  Username: " user
     [[ -z "$user" || -z "$proto" ]] && return
 
     while true; do
-        read -p "Add days: " days
+        read -p "  Add days: " days
         [[ "$days" =~ ^[0-9]+$ ]] && [[ "$days" -gt 0 ]] && break
-        echo "Enter a positive number."
+        echo "  Enter a positive number."
     done
 
     local db="$proto"
@@ -123,7 +118,7 @@ renew_user() {
 
     local old_exp
     old_exp=$(jq -r --arg u "$user" ".\"$db\"[] | select(.user==\$u) | .exp" "$USERS_FILE" 2>/dev/null)
-    [[ -z "$old_exp" || "$old_exp" == "null" ]] && { echo "User not found."; return; }
+    [[ -z "$old_exp" || "$old_exp" == "null" ]] && { echo "  User not found."; return; }
 
     local new_exp
     new_exp=$(date -d "$old_exp + $days days" +%Y-%m-%d 2>/dev/null) || new_exp=$(date -d "+$days days" +%Y-%m-%d)
@@ -135,57 +130,54 @@ renew_user() {
     mv "$tmpfile" "$USERS_FILE"
     chmod 600 "$USERS_FILE"
 
-    echo "Renewed: $user -> $new_exp"
-    read -n 1 -s -r -p "Press any key..."
+    echo "  Renewed: $user → $new_exp"
+    read -n 1 -s -r -p "  Press any key..."
 }
 
 # ── Online users check ─────────────────────────────────
 online_check() {
     clear
-    echo -e "${CYAN}=========================${NC}"
-    echo -e "${YELLOW}  Online Xray Users (last 15 min)${NC}"
-    echo -e "${CYAN}=========================${NC}"
-    echo ""
-
+    ui_header "Online Xray Users (last 15 min)"
+    local count=0
     if [[ -f /var/log/xray/access.log ]]; then
         grep "accepted" /var/log/xray/access.log 2>/dev/null | \
             awk '{print $NF}' | sort -u | while read email; do
-            echo "  $email"
+            echo "  $email"; count=1
         done
     else
-        echo "No access log found."
+        echo "  No access log found."
     fi
-
     echo ""
-    echo "Total online: $(xray_online_count 2>/dev/null || echo 0)"
-    read -n 1 -s -r -p "Press any key..."
+    echo "  Total online: $(xray_online_count 2>/dev/null || echo 0)"
+    read -n 1 -s -r -p "  Press any key..."
 }
 
 # ── Change UUID/Password ───────────────────────────────
 change_cred() {
     clear
-    echo "1) VMess UUID"
-    echo "2) VLess UUID"
-    echo "3) Trojan Password"
-    echo "4) Reality UUID"
-    read -p "Select [1-4]: " choice
+    ui_header "Change Credentials" "Xray Manager › Change"
+    ui_item 1 "VMess UUID"
+    ui_item 2 "VLess UUID"
+    ui_item 3 "Trojan Password"
+    ui_item 4 "Reality UUID"
+    echo ""
+    read -p "  Select [1-4]: " choice
     case "$choice" in
         1) local proto="vmess" field="id" db="vmess" ;;
         2) local proto="vless" field="id" db="vless" ;;
         3) local proto="trojan" field="password" db="trojan" ;;
         4) local proto="reality" field="id" db="reality" ;;
-        *) echo "Invalid."; return ;; 
+        *) echo "  Invalid."; return ;;
     esac
 
-    read -p "Username: " user
+    read -p "  Username: " user
     local old_val
     old_val=$(jq -r --arg u "$user" ".\"$db\"[] | select(.user==\$u) | .uuid // .password" "$USERS_FILE" 2>/dev/null)
-    [[ -z "$old_val" || "$old_val" == "null" ]] && { echo "User not found."; return; }
+    [[ -z "$old_val" || "$old_val" == "null" ]] && { echo "  User not found."; return; }
 
     local new_val
     new_val=$(gen_uuid)
 
-    # Update xray config
     local tmpfile="${XRAY_CONFIG}.tmp.$$"
     local ports=($(get_ports "$proto"))
     cp "$XRAY_CONFIG" "$tmpfile"
@@ -197,7 +189,6 @@ change_cred() {
     done
     mv "$tmpfile" "$XRAY_CONFIG"
 
-    # Update users DB
     local utmp="${USERS_FILE}.tmp.$$"
     jq --arg u "$user" --arg v "$new_val" --arg db "$db" \
        ".[\$db] |= map(if .user == \$u then .\"$field\" = \$v else . end)" \
@@ -205,22 +196,20 @@ change_cred() {
     mv "$utmp" "$USERS_FILE"
     chmod 600 "$USERS_FILE"
 
-    /usr/bin/xray run -test -config "$XRAY_CONFIG" &>/dev/null || { echo "Config validation failed!"; return; }
+    /usr/bin/xray run -test -config "$XRAY_CONFIG" &>/dev/null || { echo "  Config validation failed!"; return; }
     systemctl restart xray 2>/dev/null
 
-    echo "Updated $field for $user -> $new_val"
-    read -n 1 -s -r -p "Press any key..."
+    echo "  Updated $field for $user → $new_val"
+    read -n 1 -s -r -p "  Press any key..."
 }
 
 # ── Service status ─────────────────────────────────────
 check_status() {
     clear
-    echo -e "${CYAN}=========================${NC}"
-    echo -e "${YELLOW}  Xray Service Status${NC}"
-    echo -e "${CYAN}=========================${NC}"
-    echo ""
+    ui_header "Xray Service Status"
 
-    systemctl is-active --quiet xray && echo -e "Xray  : ${GREEN}Running${NC}" || echo -e "Xray  : ${RED}Stopped${NC}"
+    systemctl is-active --quiet xray && echo -e "  Xray     : ${GREEN}Running${NC}" || echo -e "  Xray     : ${RED}Stopped${NC}"
+    systemctl is-active --quiet hysteria && echo -e "  Hysteria : ${GREEN}Running${NC}" || echo -e "  Hysteria : ${RED}Stopped${NC}"
     echo ""
 
     if systemctl is-active --quiet xray; then
@@ -228,43 +217,40 @@ check_status() {
         local vless_count=$(jq '.inbounds[] | select(.port==14016) | .settings.clients | length' "$XRAY_CONFIG" 2>/dev/null || echo 0)
         local trojan_count=$(jq '.inbounds[] | select(.port==25432) | .settings.clients | length' "$XRAY_CONFIG" 2>/dev/null || echo 0)
         local ss_count=$(jq '.inbounds[] | select(.port==10004) | .settings.clients | length' "$XRAY_CONFIG" 2>/dev/null || echo 0)
-
         local reality_count=$(jq '.inbounds[] | select(.port==8443) | .settings.clients | length' "$XRAY_CONFIG" 2>/dev/null || echo 0)
         local ss2022_count=$(jq '.inbounds[] | select(.port==10010) | .settings.users | length' "$XRAY_CONFIG" 2>/dev/null || echo 0)
         local hysteria2_count=$(jq '.hysteria2 | length' "$USERS_FILE" 2>/dev/null || echo 0)
 
-        echo "VMess       : $vmess_count users"
-        echo "VLess       : $vless_count users"
-        echo "Trojan      : $trojan_count users"
-        echo "Shadowsocks : $ss_count users"
-        echo "Reality     : $reality_count users"
-        echo "SS-2022     : $ss2022_count users"
-        echo "Hysteria2   : $hysteria2_count users"
+        echo "  VMess       : $vmess_count users"
+        echo "  VLess       : $vless_count users"
+        echo "  Trojan      : $trojan_count users"
+        echo "  Shadowsocks : $ss_count users"
+        echo "  Reality     : $reality_count users"
+        echo "  SS-2022     : $ss2022_count users"
+        echo "  Hysteria2   : $hysteria2_count users"
     fi
 
     echo ""
-    read -n 1 -s -r -p "Press any key..."
+    read -n 1 -s -r -p "  Press any key..."
 }
 
 # ── Main menu ──────────────────────────────────────────
 while true; do
     clear
-    echo -e "${CYAN}===========================${NC}"
-    echo -e "${YELLOW}    Xray Manager Menu${NC}"
-    echo -e "${CYAN}===========================${NC}"
+    ui_header "Xray Manager" "Main › Xray"
+
+    printf "  ${GREEN}%2s)${NC} %-18s ${GREEN}%2s)${NC} %s\n"  1 "Add VMess"    6 "Delete User"
+    printf "  ${GREEN}%2s)${NC} %-18s ${GREEN}%2s)${NC} %s\n"  2 "Add VLess"    7 "Change Creds"
+    printf "  ${GREEN}%2s)${NC} %-18s ${GREEN}%2s)${NC} %s\n"  3 "Add Trojan"   8 "Online Users"
+    printf "  ${GREEN}%2s)${NC} %-18s ${GREEN}%2s)${NC} %s\n"  4 "Add Shadowsocks" 9  "Add Reality"
+    printf "  ${GREEN}%2s)${NC} %-18s ${GREEN}%2s)${NC} %s\n"  5 "Renew User"  10 "Add Hysteria2"
+    printf "  %-18s ${GREEN}%2s)${NC} %s\n" "" 11 "Add SS-2022"
     echo ""
-    echo -e " ${GREEN}1${NC}) Add VMess         ${GREEN}6${NC}) Delete User"
-    echo -e " ${GREEN}2${NC}) Add VLess         ${GREEN}7${NC}) Change UUID/Password"
-    echo -e " ${GREEN}3${NC}) Add Trojan       ${GREEN}8${NC}) Online Users"
-    echo -e " ${GREEN}4${NC}) Add Shadowsocks   ${GREEN}9${NC}) Add Reality"
-    echo -e " ${GREEN}5${NC}) Renew User       ${GREEN}10${NC}) Add Hysteria2"
-    echo -e "                          ${GREEN}11${NC}) Add SS-2022"
+    echo -e "  ${CYAN}L${NC}) List Users  ${CYAN}S${NC}) Status"
     echo ""
-    echo -e " ${CYAN}L${NC}) List Users"
-    echo -e " ${CYAN}S${NC}) Service Status"
-    echo -e " ${RED}X${NC}) Back to Main Menu"
-    echo ""
-    read -p "Select: " opt
+
+    ui_footer
+    read -p "  Select: " opt
     case "$opt" in
         1) add-vmess ;;
         2) add-vless ;;
@@ -277,7 +263,7 @@ while true; do
         9) add-reality ;;
         10) add-hysteria2 ;;
         11) add-ss2022 ;;
-        L|l) read -p "Protocol (vmess/vless/trojan/ss/reality/ss2022/hysteria2/all): " lp; list_users "$lp"; read -n1 -s -r -p "Press any key..." ;;
+        L|l) read -p "  Protocol (vmess/vless/trojan/ss/reality/ss2022/hysteria2/all): " lp; list_users "$lp" ;;
         S|s) check_status ;;
         X|x) clear; exit 0 ;;
         *) ;;

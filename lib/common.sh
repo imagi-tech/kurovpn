@@ -158,33 +158,33 @@ parse_args() {
 
 # ── Banner ─────────────────────────────────────────────
 show_banner() {
-    echo -e "
-${CYAN}╔══════════════════════════════════════════════╗
-║                                              ║
-║   ${WHITE}KUROVPN${CYAN} — Multi-Protocol VPN Installer   ║
-║   ${BLUE}https://github.com/imagi-tech/kurovpn${CYAN}     ║
-║                                              ║
-╚══════════════════════════════════════════════╝${NC}
-"
+    local inner_w=46
+    echo ""
+    echo -e "${CYAN}╔$(printf '═%.0s' $(seq 1 $inner_w))╗${NC}"
+    local brand="${WHITE}KUROVPN${NC} — Multi-Protocol VPN Installer"
+    local bvis=$(echo -en "$brand" | sed 's/\x1b\[[0-9;]*m//g' | wc -m)
+    local pad=$(( inner_w - bvis - 2 ))
+    (( pad < 0 )) && pad=0
+    echo -e "${CYAN}║${NC} ${brand}$(printf "%${pad}s") ${CYAN}║${NC}"
+    echo -e "${CYAN}╚$(printf '═%.0s' $(seq 1 $inner_w))╝${NC}"
+    echo -e "  ${BLUE}https://github.com/imagi-tech/kurovpn${NC}"
+    echo ""
 }
 
 # ── Summary after install ──────────────────────────────
 show_summary() {
     local domain="$1"
+    source "$(dirname "${BASH_SOURCE[0]}")/ui.sh" 2>/dev/null || true
     echo ""
-    echo -e "${CYAN}══════════════════════════════════════════════${NC}"
-    echo -e "${WHITE}  KUROVPN Installation Complete${NC}"
-    echo -e "${CYAN}══════════════════════════════════════════════${NC}"
-    echo ""
-    echo -e "  Domain      : ${GREEN}$domain${NC}"
-    echo -e "  Xray Ports  : 443, 80, 855, 2095"
-    echo -e "  SSH Ports   : 22, 3303"
-    echo -e "  Dropbear    : 109 (WS), 111, 69"
-    echo -e "  BadVPN      : UDP 7300"
-    echo -e "  WG Port     : 2048"
-    echo -e "  NoobZVPNS   : TCP 8080, SSL 9443"
-    echo ""
+    ui_card_begin "Installation Complete"
+    ui_kv "Domain" "$domain"
+    ui_kv "Xray Ports" "443, 80"
+    ui_kv "SSH Ports"  "22, 3303"
+    ui_kv "Dropbear"   "109, 111, 69"
+    ui_kv "BadVPN"     "UDP 7300"
+    ui_kv "WG Port"    "2048"
+    ui_card_end
     echo -e "  Run ${YELLOW}menu${NC} to manage accounts."
-    echo -e "  Run ${YELLOW}sudo ./uninstall.sh${NC} to remove KUROVPN."
+    echo -e "  Run ${YELLOW}uninstall${NC} to remove KUROVPN."
     echo ""
 }

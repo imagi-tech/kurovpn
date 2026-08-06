@@ -7,6 +7,8 @@
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
+
 PASS=0; FAIL=0; WARN=0
 
 check() {
@@ -29,10 +31,7 @@ check_warn() {
     fi
 }
 
-echo -e "${CYAN}══════════════════════════════════════════════${NC}"
-echo -e "${CYAN}  KUROVPN System Verification${NC}"
-echo -e "${CYAN}══════════════════════════════════════════════${NC}"
-echo ""
+ui_header "System Verification" "Diagnostics"
 
 echo -e "${YELLOW}[ Services ]${NC}"
 check "nginx is running"    systemctl is-active --quiet nginx
