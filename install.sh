@@ -73,8 +73,36 @@ verify_install() {
     fi
 }
 
-# NOTE: Management commands (menu, add-*, etc.) will be installed in Phase 3.
-# For now, install only runs infrastructure setup.
+# ── Install commands to /usr/bin ───────────────────────
+install_commands() {
+    log_step "Installing management commands"
+
+    mkdir -p /usr/lib/kurovpn
+
+    local cmd_list=(
+        "menu" "menu-ssh" "menu-xray" "menu-set"
+        "Menu-WGF" "nmenu" "lmenu" "bmenu" "botmenu" "dm-menu"
+        "addssh" "add-l2tp" "add-ssws" "add-trojan" "add-vless" "add-vmess"
+        "backup" "xp"
+    )
+
+    for cmd in "${cmd_list[@]}"; do
+        if [[ -f "$SCRIPT_DIR/commands/$cmd" ]]; then
+            cp "$SCRIPT_DIR/commands/$cmd" "/usr/bin/$cmd"
+            chmod +x "/usr/bin/$cmd"
+        else
+            log_warn "Command not found: $cmd (skipping)"
+        fi
+    done
+
+    # Install Xray client management library
+    if [[ -f "$SCRIPT_DIR/lib/xray-clients.sh" ]]; then
+        cp "$SCRIPT_DIR/lib/xray-clients.sh" "/usr/lib/kurovpn/xray-clients.sh"
+        chmod 644 "/usr/lib/kurovpn/xray-clients.sh"
+    fi
+
+    log_info "Commands and libraries installed"
+}
 
 # ── Main Installation ──────────────────────────────────
 main() {
@@ -123,14 +151,17 @@ main() {
     # 9. BadVPN
     install_badvpn
 
-    # 10. Cron + iptables persistence (user-management cron added in Phase 3)
+    # 10. Management commands
+    install_commands
+
+    # 11. Cron + iptables persistence
     setup_cron
     save_iptables
 
-    # 11. Final verification
+    # 12. Final verification
     verify_install
 
-    # 12. Summary
+    # 13. Summary
     show_summary "$domain"
 }
 

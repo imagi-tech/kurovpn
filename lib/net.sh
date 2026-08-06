@@ -76,7 +76,8 @@ setup_cron() {
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# User-expiry cron will be added in Phase 3 (rewritten xp command)
+# Remove expired VPN accounts every 15 minutes
+0,15,30,45 * * * * root /usr/bin/xp >/dev/null 2>&1
 
 # Backup daily at midnight, 6am, noon, 6pm
 0 0,6,12,18 * * * root /usr/bin/backup >/dev/null 2>&1
