@@ -53,6 +53,26 @@ Options:
 | `botmenu` | Telegram bot setup |
 | `xp` | Auto-expiry sweeper (cron every 15 min) |
 | `backup` | Manual backup to tar.gz |
+| `kurovpn-verify` | Full system health check (27 checks) |
+
+## Telegram Bot
+
+An admin-only Telegram bot for remote VPN account management.
+
+```bash
+# Interactive setup:
+botmenu
+
+# Manual setup:
+echo "YOUR_BOT_TOKEN" > /etc/funny/.keybot
+echo "YOUR_CHAT_ID" > /etc/funny/.chatid
+cp Plugin/bot.py /opt/kurovpn/bot.py
+systemctl enable --now kurovpn-bot
+```
+
+**Commands:** `/start` `/add_vmess` `/add_vless` `/add_trojan` `/add_ss` `/add_ssh` `/list` `/status` `/verify` `/backup`
+
+**Security:** Admin-only (white-listed by chat ID). Fails closed — if no admins are configured, the bot refuses all commands. No shell injection — all operations use list-arg subprocess calls.
 
 ## Architecture
 
@@ -113,8 +133,8 @@ User metadata is stored in `/etc/kurovpn/users.json`:
 - [x] Phase 1 — Repo cleanup & rebrand
 - [x] Phase 2 — Modular installer (official Xray + valid JSON)
 - [x] Phase 3 — Commands rewrite (jq-based, all audit bugs fixed)
-- [ ] Phase 4 — Uninstall verification & final polish
-- [ ] Phase 5 — Telegram bot fixes
+- [x] Phase 4 — Uninstall verification + kurovpn-verify (27/27 passed)
+- [x] Phase 5 — Telegram bot (secure, admin-only, subprocess-based)
 - [ ] Phase 6 — New protocols (VLESS Reality, Hysteria2)
 - [ ] Phase 7 — Comprehensive documentation
 
