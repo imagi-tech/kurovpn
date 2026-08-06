@@ -64,5 +64,8 @@ Expired    : ${exp}
 Server IP  : ${PUBLIC_IP}
 =========================
 EOF
+if [[ -t 0 ]]; then
+    read -n 1 -s -r -p "Press any key to continue..."
+fi
 echo ""
 

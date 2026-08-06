@@ -74,5 +74,8 @@ if [[ -n "$KEY" && -n "$CHATID" ]]; then
         "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
 fi
 
+if [[ -t 0 ]]; then
+    read -n 1 -s -r -p "Press any key to continue..."
+fi
 echo ""
 

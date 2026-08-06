@@ -76,6 +76,7 @@ Payload WS :
 GET / HTTP/1.1[crlf]Host: ${domain}[crlf]Upgrade: websocket[crlf][crlf]
 =========================
 EOF
+if [[ -t 0 ]]; then
+    read -n 1 -s -r -p "Press any key to continue..."
+fi
 echo ""
-read -n 1 -s -r -p "Press any key to go back..."
-menu-ssh
