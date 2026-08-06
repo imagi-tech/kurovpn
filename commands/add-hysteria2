@@ -1,0 +1,62 @@
+#!/bin/bash
+#
+#  KUROVPN -- VPN Auto-Installer & Manager
+#  https://github.com/imagi-tech/kurovpn
+#
+#  Add Hysteria2 account (QUIC/UDP)
+
+source /usr/lib/kurovpn/common.sh 2>/dev/null || true
+source /usr/lib/kurovpn/xray-clients.sh 2>/dev/null || true
+source /usr/lib/kurovpn/hysteria-clients.sh 2>/dev/null || true
+
+USERS_FILE="/etc/kurovpn/users.json"
+domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
+
+clear
+echo -e "\n===================\n[ Create Hysteria2 Account ]\n===================\n"
+
+while true; do
+    read -p "Username  : " user
+    [[ -z "$user" ]] && continue
+    valid_username "$user" || { echo "Error: alphanumeric and underscore only."; continue; }
+    user_exists "hysteria2" "$user" && { echo "Error: user '$user' already exists."; continue; }
+    break
+done
+
+while true; do
+    read -p "Duration (days): " days
+    [[ "$days" =~ ^[0-9]+$ ]] && [[ "$days" -gt 0 ]] && break
+    echo "Error: enter a positive number."
+done
+
+exp=$(date -d "$days days" +%Y-%m-%d)
+password=$(openssl rand -base64 24 2>/dev/null | tr '+/' '-_' | tr -d '=\n')
+
+hy_add_user "$user" "$password" "$exp" || { echo "Error: failed to add Hysteria2 user."; exit 1; }
+
+link="hysteria2://${user}:${password}@${domain}:443?insecure=0&sni=${domain}#${user}"
+
+clear
+cat << EOF
+=========================
+[ Hysteria2 Account ]
+=========================
+Remarks    : ${user}
+Host       : ${domain}
+Port       : 443 (UDP/QUIC)
+Password   : ${password}
+Expired    : ${exp}
+=========================
+${link}
+=========================
+EOF
+
+CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
+KEY=$(cat /etc/funny/.keybot 2>/dev/null)
+if [[ -n "$KEY" && -n "$CHATID" ]]; then
+    curl -s --max-time 10 -d "chat_id=$CHATID&text=Hysteria2+$user+created+exp+$exp&parse_mode=html" \
+        "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
+fi
+
+echo ""
+

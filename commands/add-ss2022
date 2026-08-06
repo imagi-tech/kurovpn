@@ -1,0 +1,67 @@
+#!/bin/bash
+#
+#  KUROVPN -- VPN Auto-Installer & Manager
+#  https://github.com/imagi-tech/kurovpn
+#
+#  Add Shadowsocks-2022 account (direct TCP+UDP)
+
+source /usr/lib/kurovpn/common.sh 2>/dev/null || true
+source /usr/lib/kurovpn/xray-clients.sh 2>/dev/null || true
+
+XRAY_CONFIG="/etc/xray/config.json"
+USERS_FILE="/etc/kurovpn/users.json"
+domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
+
+clear
+echo -e "\n===================\n[ Create Shadowsocks-2022 Account ]\n===================\n"
+
+while true; do
+    read -p "Username  : " user
+    [[ -z "$user" ]] && continue
+    valid_username "$user" || { echo "Error: alphanumeric and underscore only."; continue; }
+    user_exists "ss2022" "$user" && { echo "Error: user '$user' already exists."; continue; }
+    break
+done
+
+while true; do
+    read -p "Duration (days): " days
+    [[ "$days" =~ ^[0-9]+$ ]] && [[ "$days" -gt 0 ]] && break
+    echo "Error: enter a positive number."
+done
+
+exp=$(date -d "$days days" +%Y-%m-%d)
+key=$(gen_ss2022_key)
+client_json=$(make_ss2022_client "$key" "$user")
+
+xray_add_ss2022_client "$client_json" || { echo "Error: failed to update Xray config."; exit 1; }
+users_add "ss2022" "$user" "$exp" "\"password\":\"$key\""
+
+encoded=$(echo -n "2022-blake3-aes-256-gcm:${key}" | base64 -w 0 2>/dev/null | tr '+/' '-_' | tr -d '=')
+link="ss://${encoded}@${domain}:10010#${user}"
+
+clear
+cat << EOF
+=========================
+[ Shadowsocks-2022 Account ]
+=========================
+Remarks    : ${user}
+Host       : ${domain}
+Port       : 10010
+Method     : 2022-blake3-aes-256-gcm
+Password   : ${key}
+Expired    : ${exp}
+Network    : TCP, UDP
+=========================
+${link}
+=========================
+EOF
+
+CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
+KEY=$(cat /etc/funny/.keybot 2>/dev/null)
+if [[ -n "$KEY" && -n "$CHATID" ]]; then
+    curl -s --max-time 10 -d "chat_id=$CHATID&text=SS2022+$user+created+exp+$exp&parse_mode=html" \
+        "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
+fi
+
+echo ""
+

@@ -45,6 +45,7 @@ check_warn "xl2tpd"         systemctl is-active --quiet xl2tpd
 check_warn "ipsec"          systemctl is-active --quiet ipsec
 check_warn "pptpd"          systemctl is-active --quiet pptpd
 check_warn "badvpn"         systemctl is-active --quiet badvpn
+check_warn "hysteria"      systemctl is-active --quiet hysteria
 echo ""
 
 echo -e "${YELLOW}[ Configuration ]${NC}"
@@ -55,6 +56,8 @@ check "domain set"          'test -f /etc/xray/domain -a -s /etc/xray/domain'
 check "TLS cert exists"     'test -f /etc/xray/xray.crt -a -f /etc/xray/xray.key'
 check "TLS cert not expired" 'openssl x509 -in /etc/xray/xray.crt -noout -checkend 86400 &>/dev/null'
 check "users.json"          'test -f /etc/kurovpn/users.json'
+check_warn "reality keypair" 'test -f /etc/xray/reality-key -a -f /etc/xray/reality-pub'
+check_warn "hysteria config" 'test -f /etc/hysteria/config.yaml'
 echo ""
 
 echo -e "${YELLOW}[ Ports ]${NC}"
@@ -64,6 +67,9 @@ check "port 22  (ssh)"      'ss -tlnp 2>/dev/null | grep -q ":22.*ssh"'
 check_warn "port 109 (dropbear)" 'ss -tlnp 2>/dev/null | grep -q ":109.*dropbear"'
 check_warn "port 7300 (badvpn)"  'ss -tlnp 2>/dev/null | grep -q ":7300"'
 check_warn "port 2048 (wg)"      'ss -ulnp 2>/dev/null | grep -q ":2048"'
+check_warn "port 8443 (reality)" 'ss -tlnp 2>/dev/null | grep -q ":8443.*xray"'
+check_warn "port 10010 (ss2022)" 'ss -tlnp 2>/dev/null | grep -q ":10010.*xray"'
+check_warn "port 443/udp (hysteria)" 'ss -ulnp 2>/dev/null | grep -q ":443.*hysteria"'
 echo ""
 
 echo -e "${YELLOW}[ Management ]${NC}"

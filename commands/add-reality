@@ -1,0 +1,78 @@
+#!/bin/bash
+#
+#  KUROVPN -- VPN Auto-Installer & Manager
+#  https://github.com/imagi-tech/kurovpn
+#
+#  Add VLESS-XTLS-Vision Reality account
+
+source /usr/lib/kurovpn/common.sh 2>/dev/null || true
+source /usr/lib/kurovpn/xray-clients.sh 2>/dev/null || true
+
+XRAY_CONFIG="/etc/xray/config.json"
+USERS_FILE="/etc/kurovpn/users.json"
+REALITY_PUBFILE="/etc/xray/reality-pub"
+domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
+
+clear
+echo -e "\n===================\n[ Create Reality Account ]\n===================\n"
+
+while true; do
+    read -p "Username  : " user
+    [[ -z "$user" ]] && continue
+    valid_username "$user" || { echo "Error: alphanumeric and underscore only."; continue; }
+    user_exists "reality" "$user" && { echo "Error: user '$user' already exists."; continue; }
+    break
+done
+
+while true; do
+    read -p "Duration (days): " days
+    [[ "$days" =~ ^[0-9]+$ ]] && [[ "$days" -gt 0 ]] && break
+    echo "Error: enter a positive number."
+done
+
+if [[ ! -f "$REALITY_PUBFILE" ]]; then
+    echo "Error: Reality keypair not found. Run install again."
+    exit 1
+fi
+
+read -r pubkey shortid < "$REALITY_PUBFILE"
+[[ -z "$pubkey" ]] && { echo "Error: Reality public key missing."; exit 1; }
+[[ -z "$shortid" ]] && { echo "Error: Reality shortId missing."; exit 1; }
+
+exp=$(date -d "$days days" +%Y-%m-%d)
+uuid=$(gen_uuid)
+client_json=$(make_reality_client "$uuid" "$user")
+
+xray_add_client "reality" "$client_json" || { echo "Error: failed to update Xray config."; exit 1; }
+users_add "reality" "$user" "$exp" "\"uuid\":\"$uuid\""
+
+link="vless://${uuid}@${domain}:8443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${domain}&fp=chrome&pbk=${pubkey}&sid=${shortid}&type=tcp#${user}"
+
+clear
+cat << EOF
+=========================
+[ Reality Account ]
+=========================
+Remarks    : ${user}
+Host/SNI   : ${domain}
+UUID       : ${uuid}
+Flow       : xtls-rprx-vision
+Security   : reality
+Port       : 8443
+Public Key : ${pubkey}
+Short ID   : ${shortid}
+Expired    : ${exp}
+=========================
+${link}
+=========================
+EOF
+
+CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
+KEY=$(cat /etc/funny/.keybot 2>/dev/null)
+if [[ -n "$KEY" && -n "$CHATID" ]]; then
+    curl -s --max-time 10 -d "chat_id=$CHATID&text=Reality+$user+created+exp+$exp&parse_mode=html" \
+        "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
+fi
+
+echo ""
+

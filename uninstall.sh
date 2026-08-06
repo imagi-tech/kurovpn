@@ -36,7 +36,7 @@ read -p "Type 'yes' to confirm: " confirm
 info "Stopping services..."
 
 SERVICES=(
-    xray nginx dropbear edu badvpn noobzvpns
+    xray nginx dropbear edu badvpn noobzvpns hysteria
     "wg-quick@wg0" "wg-quick@wgcf"
     xl2tpd ipsec pptpd
 )
@@ -54,11 +54,12 @@ rm -f /etc/systemd/system/edu.service
 rm -f /etc/systemd/system/badvpn.service
 rm -f /etc/systemd/system/noobzvpns.service
 rm -f /etc/systemd/system/kurovpn-bot.service
+rm -f /etc/systemd/system/hysteria.service
 systemctl daemon-reload
 
 # ── Remove binaries ────────────────────────────────────
 info "Removing installed binaries..."
-rm -f /usr/bin/xray /usr/bin/ws /usr/bin/badvpn /usr/bin/noobzvpns
+rm -f /usr/bin/xray /usr/bin/ws /usr/bin/badvpn /usr/bin/noobzvpns /usr/bin/hysteria
 rm -f /usr/bin/config.yaml
 
 # Remove KUROVPN commands (if installed in Phase 3)
@@ -67,6 +68,7 @@ rm -f /usr/bin/Menu-WGF /usr/bin/nmenu /usr/bin/lmenu
 rm -f /usr/bin/bmenu /usr/bin/botmenu /usr/bin/dm-menu
 rm -f /usr/bin/addssh /usr/bin/add-l2tp /usr/bin/add-ssws
 rm -f /usr/bin/add-trojan /usr/bin/add-vless /usr/bin/add-vmess
+rm -f /usr/bin/add-reality /usr/bin/add-ss2022 /usr/bin/add-hysteria2
 rm -f /usr/bin/backup /usr/bin/xp /usr/bin/kurovpn-verify
 
 # ── Remove library directory ───────────────────────────
@@ -78,6 +80,7 @@ rm -rf /etc/xray
 rm -rf /etc/kurovpn
 rm -rf /etc/funny
 rm -rf /etc/noobzvpns
+rm -rf /etc/hysteria
 rm -rf /etc/wireguard
 rm -rf /etc/v2ray
 rm -rf /etc/slowdns

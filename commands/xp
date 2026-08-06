@@ -20,6 +20,8 @@ get_xray_ports() {
         vless) echo "14016 24456 8003" ;;
         trojan) echo "25432 33456 8002" ;;
         ss) echo "10004" ;;
+        reality) echo "8443" ;;
+        ss2022) echo "10010" ;;
     esac
 }
 
@@ -38,33 +40,61 @@ del_from_xray() {
     rm -f "$tmpfile" "${tmpfile}.2"
 }
 
-del_from_users() {
-    local proto="$1" user="$2"
+del_from_xray_ss2022() {
+    local val="$1"
+    local tmpfile="${XRAY_CONFIG}.tmp.$$"
+    cp "$XRAY_CONFIG" "$tmpfile" 2>/dev/null || return
+    jq --arg val "$val" \
+        "(.inbounds[] | select(.port == 10010) | .settings.users) |= map(select(.key != \$val))" \
+        "$tmpfile" > "${tmpfile}.2" 2>/dev/null
+    mv "${tmpfile}.2" "$tmpfile" 2>/dev/null
+    cp "$tmpfile" "$XRAY_CONFIG" 2>/dev/null
+    rm -f "$tmpfile" "${tmpfile}.2"
+}
+
+del_hysteria2_user() {
+    local user="$1"
     local tmpfile="${USERS_FILE}.tmp.$$"
-    jq --arg proto "$proto" --arg user "$user" \
-        '.[$proto] |= map(select(.user != $user))' \
+    jq --arg user "$user" \
+        '.hysteria2 |= map(select(.user != $user))' \
         "$USERS_FILE" > "$tmpfile" 2>/dev/null
     mv "$tmpfile" "$USERS_FILE" 2>/dev/null
     chmod 600 "$USERS_FILE" 2>/dev/null
 }
 
+del_from_users() {
+
 # ── Process Xray users ─────────────────────────────────
-for proto in vmess vless trojan shadowsocks; do
+for proto in vmess vless trojan shadowsocks reality ss2022; do
     case "$proto" in
         vmess)       p="vmess"; field="id" ;;
         vless)       p="vless"; field="id" ;;
         trojan)      p="trojan"; field="password" ;;
         shadowsocks) p="ss"; field="password" ;;
+        reality)     p="reality"; field="id" ;;
+        ss2022)      p="ss2022"; field="password" ;;
     esac
 
     jq -r --arg now "$NOW" --arg proto "$proto" \
         '.[$proto][]? | select(.exp < $now) | "\(.user) \(.uuid // .password)"' \
         "$USERS_FILE" 2>/dev/null | while read user cred; do
         [[ -z "$user" ]] && continue
-        del_from_xray "$p" "$field" "$cred"
+        if [[ "$proto" == "ss2022" ]]; then
+            del_from_xray_ss2022 "$cred"
+        else
+            del_from_xray "$p" "$field" "$cred"
+        fi
         del_from_users "$proto" "$user"
         rm -rf /etc/funny/limit/xray/quota/"$user" /etc/funny/limit/xray/ip/"$user" 2>/dev/null
     done
+done
+
+# ── Process Hysteria2 users ─────────────────────────────
+jq -r --arg now "$NOW" '.hysteria2[]? | select(.exp < $now) | .user' \
+    "$USERS_FILE" 2>/dev/null | while read user; do
+    [[ -z "$user" ]] && continue
+    del_hysteria2_user "$user"
+    del_from_users "hysteria2" "$user"
 done
 
 # ── Process SSH users ──────────────────────────────────
@@ -106,4 +136,41 @@ fi
 
 # ── Restart ────────────────────────────────────────────
 systemctl restart xray 2>/dev/null
+
+if systemctl is-active --quiet hysteria 2>/dev/null; then
+    DOM=$(cat /etc/xray/domain 2>/dev/null || echo localhost)
+    AUTH=""
+    USERPASS=$(jq -r '.hysteria2[-1].password' "$USERS_FILE" 2>/dev/null)
+    if [[ -n "$USERPASS" ]]; then
+        AUTH="auth:
+  type: password
+  password: ${USERPASS}"
+    else
+        placeholder=$(head -c 24 /dev/urandom 2>/dev/null | base64 -w0 2>/dev/null || openssl rand -base64 24)
+        AUTH="auth:
+  type: password
+  password: ${placeholder}"
+    fi
+    cat > /etc/hysteria/config.yaml << HYPEOF
+server: :443
+protocol: udp
+
+tls:
+  cert: /etc/xray/xray.crt
+  key: /etc/xray/xray.key
+
+${AUTH}
+masquerade:
+  type: proxy
+  proxy:
+    url: https://${DOM}/
+    rewriteHost: true
+
+speedTest: false
+disableUDP: false
+HYPEOF
+    chmod 600 /etc/hysteria/config.yaml
+    systemctl restart hysteria 2>/dev/null
+fi
+
 chmod 600 /etc/ppp/chap-secrets /etc/ipsec.d/passwd "$USERS_FILE" 2>/dev/null

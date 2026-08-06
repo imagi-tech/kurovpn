@@ -139,6 +139,30 @@ def run_ss(user: str, days: str) -> str:
         return f"Error: {err or out}"
     return out.strip()
 
+def run_reality(user: str, days: str) -> str:
+    cmd = ["/usr/bin/add-reality"]
+    stdin = f"{user}\n{days}\n"
+    rc, out, err = run(cmd, stdin)
+    if rc != 0:
+        return f"Error: {err or out}"
+    return out.strip()
+
+def run_ss2022(user: str, days: str) -> str:
+    cmd = ["/usr/bin/add-ss2022"]
+    stdin = f"{user}\n{days}\n"
+    rc, out, err = run(cmd, stdin)
+    if rc != 0:
+        return f"Error: {err or out}"
+    return out.strip()
+
+def run_hysteria2(user: str, days: str) -> str:
+    cmd = ["/usr/bin/add-hysteria2"]
+    stdin = f"{user}\n{days}\n"
+    rc, out, err = run(cmd, stdin)
+    if rc != 0:
+        return f"Error: {err or out}"
+    return out.strip()
+
 def run_verify() -> str:
     rc, out, err = run(["/usr/bin/kurovpn-verify"])
     return out.strip()
@@ -163,6 +187,7 @@ def cmd_start(chat_id: int, username: str):
     send_message(chat_id, f"<b>KUROVPN Bot</b>\nDomain: {DOMAIN}\n\n"
                            "Commands:\n"
                            "/add_vmess /add_vless /add_trojan /add_ss /add_ssh\n"
+                           "/add_reality /add_hysteria2 /add_ss2022\n"
                            "/list — List all xray users\n"
                            "/status — Service status\n"
                            "/verify — Run full verification\n"
@@ -186,10 +211,22 @@ def cmd_add_ss(chat_id: int, username: str):
 
 def cmd_add_ssh(chat_id: int, username: str):
     start_interactive(chat_id, username, "add_ssh", {},
-        "📟 <b>Create SSH Account</b>\n\nSend: <code>username|password|days</code>\nExample: <code>eve|mypass|30</code>")
+        "&#x1F4DF; <b>Create SSH Account</b>\n\nSend: <code>username|password|days</code>\nExample: <code>eve|mypass|30</code>")
+
+def cmd_add_reality(chat_id: int, username: str):
+    start_interactive(chat_id, username, "add_reality", {},
+        "&#x1F4DF; <b>Create VLESS-Reality Account</b>\n\nSend: <code>username|days</code>\nExample: <code>frank|30</code>")
+
+def cmd_add_hysteria2(chat_id: int, username: str):
+    start_interactive(chat_id, username, "add_hysteria2", {},
+        "&#x1F4DF; <b>Create Hysteria2 Account</b>\n\nSend: <code>username|days</code>\nExample: <code>grace|30</code>")
+
+def cmd_add_ss2022(chat_id: int, username: str):
+    start_interactive(chat_id, username, "add_ss2022", {},
+        "&#x1F4DF; <b>Create Shadowsocks-2022 Account</b>\n\nSend: <code>username|days</code>\nExample: <code>hank|30</code>")
 
 def cmd_status(chat_id: int, username: str):
-    for svc in ["nginx", "xray", "dropbear", "edu", "wg-quick@wg0", "xl2tpd", "ipsec"]:
+    for svc in ["nginx", "xray", "hysteria", "dropbear", "edu", "wg-quick@wg0", "xl2tpd", "ipsec"]:
         rc, out, err = run(["systemctl", "is-active", svc])
         status = "🟢" if "active" in out else "🔴"
         send_message(chat_id, f"{status} {svc}")
@@ -213,7 +250,7 @@ def cmd_list(chat_id: int, username: str):
         return
 
     lines = []
-    for proto in ["vmess", "vless", "trojan", "shadowsocks"]:
+    for proto in ["vmess", "vless", "trojan", "shadowsocks", "reality", "ss2022", "hysteria2"]:
         users = data.get(proto, [])
         if users:
             lines.append(f"\n<b>{proto.upper()}</b> ({len(users)} users)")
@@ -301,6 +338,42 @@ def handle_interactive(chat_id: int, username: str, text: str):
         result = run_ssh(user, password, days)
         send_message(chat_id, f"<pre>{result[-3500:]}</pre>")
 
+    elif command == "add_reality":
+        if len(parts) != 2:
+            send_message(chat_id, "Format: <code>username|days</code>")
+            return True
+        user, days = parts[0].strip(), parts[1].strip()
+        if not days.isdigit():
+            send_message(chat_id, "Days must be a number.")
+            return True
+        send_message(chat_id, f"Creating Reality: {user} ({days} days)...")
+        result = run_reality(user, days)
+        send_message(chat_id, f"<pre>{result[-3500:]}</pre>")
+
+    elif command == "add_hysteria2":
+        if len(parts) != 2:
+            send_message(chat_id, "Format: <code>username|days</code>")
+            return True
+        user, days = parts[0].strip(), parts[1].strip()
+        if not days.isdigit():
+            send_message(chat_id, "Days must be a number.")
+            return True
+        send_message(chat_id, f"Creating Hysteria2: {user} ({days} days)...")
+        result = run_hysteria2(user, days)
+        send_message(chat_id, f"<pre>{result[-3500:]}</pre>")
+
+    elif command == "add_ss2022":
+        if len(parts) != 2:
+            send_message(chat_id, "Format: <code>username|days</code>")
+            return True
+        user, days = parts[0].strip(), parts[1].strip()
+        if not days.isdigit():
+            send_message(chat_id, "Days must be a number.")
+            return True
+        send_message(chat_id, f"Creating SS-2022: {user} ({days} days)...")
+        result = run_ss2022(user, days)
+        send_message(chat_id, f"<pre>{result[-3500:]}</pre>")
+
     else:
         send_message(chat_id, "Unknown command.")
 
@@ -313,6 +386,8 @@ COMMANDS = {
     "/add_vmess": cmd_add_vmess, "/add_vless": cmd_add_vless,
     "/add_trojan": cmd_add_trojan, "/add_ss": cmd_add_ss,
     "/add_ssh": cmd_add_ssh,
+    "/add_reality": cmd_add_reality, "/add_hysteria2": cmd_add_hysteria2,
+    "/add_ss2022": cmd_add_ss2022,
     "/list": cmd_list, "/status": cmd_status,
     "/verify": cmd_verify, "/backup": cmd_backup,
 }

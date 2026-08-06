@@ -6,10 +6,12 @@
 #  lib/xray-clients.sh -- jq-based Xray client management
 #
 #  Protocol-to-port mapping:
-#    vmess:  23456 (ws), 31234 (grpc), 8001 (httpupgrade)
-#    vless:  14016 (ws), 24456 (grpc), 8003 (httpupgrade)
-#    trojan: 25432 (ws), 33456 (grpc), 8002 (httpupgrade)
-#    ss:     10004 (ws)
+#    vmess:   23456 (ws), 31234 (grpc), 8001 (httpupgrade)
+#    vless:   14016 (ws), 24456 (grpc), 8003 (httpupgrade)
+#    trojan:  25432 (ws), 33456 (grpc), 8002 (httpupgrade)
+#    ss:      10004 (ws)
+#    reality: 8443  (vless xtls-rprx-vision, direct)
+#    ss2022:  10010 (shadowsocks-2022 direct)
 
 XRAY_CONFIG="/etc/xray/config.json"
 USERS_FILE="/etc/kurovpn/users.json"
@@ -19,6 +21,8 @@ VMESS_PORTS=(23456 31234 8001)
 VLESS_PORTS=(14016 24456 8003)
 TROJAN_PORTS=(25432 33456 8002)
 SS_PORTS=(10004)
+REALITY_PORTS=(8443)
+SS2022_PORTS=(10010)
 
 get_ports() {
     case "$1" in
@@ -26,6 +30,8 @@ get_ports() {
         vless)  echo "${VLESS_PORTS[@]}" ;;
         trojan) echo "${TROJAN_PORTS[@]}" ;;
         ss|shadowsocks) echo "${SS_PORTS[@]}" ;;
+        reality) echo "${REALITY_PORTS[@]}" ;;
+        ss2022) echo "${SS2022_PORTS[@]}" ;;
     esac
 }
 
@@ -124,6 +130,48 @@ make_vmess_client() { echo "{\"id\":\"$1\",\"alterId\":0,\"email\":\"$2\"}"; }
 make_vless_client() { echo "{\"id\":\"$1\",\"email\":\"$2\"}"; }
 make_trojan_client() { echo "{\"password\":\"$1\",\"email\":\"$2\"}"; }
 make_ss_client() { echo "{\"password\":\"$1\",\"method\":\"aes-128-gcm\",\"email\":\"$2\"}"; }
+make_reality_client() { echo "{\"id\":\"$1\",\"flow\":\"xtls-rprx-vision\",\"email\":\"$2\"}"; }
+make_ss2022_client() { echo "{\"email\":\"$2\",\"key\":\"$1\"}"; }
+
+gen_ss2022_key() {
+    head -c 32 /dev/urandom 2>/dev/null | base64 -w0
+}
+
+xray_add_ss2022_client() {
+    local client_json="$1"
+    local port=10010
+    local tmpfile="${XRAY_CONFIG}.tmp.$$"
+    cp "$XRAY_CONFIG" "$tmpfile"
+    jq --argjson client "$client_json" \
+        "(.inbounds[] | select(.port == $port) | .settings.users) += [\$client]" \
+        "$tmpfile" > "${tmpfile}.2"
+    mv "${tmpfile}.2" "$tmpfile"
+    mv "$tmpfile" "$XRAY_CONFIG"
+    chmod 644 "$XRAY_CONFIG"
+    if ! /usr/bin/xray run -test -config "$XRAY_CONFIG" 2>/dev/null | grep -q "Configuration OK"; then
+        echo "Error: Xray config validation failed after adding SS2022 client." >&2
+        return 1
+    fi
+    systemctl restart xray 2>/dev/null || true
+}
+
+xray_del_ss2022_client() {
+    local value="$1"
+    local port=10010
+    local tmpfile="${XRAY_CONFIG}.tmp.$$"
+    cp "$XRAY_CONFIG" "$tmpfile"
+    jq --arg val "$value" \
+        "(.inbounds[] | select(.port == $port) | .settings.users) |= map(select(.key != \$val))" \
+        "$tmpfile" > "${tmpfile}.2"
+    mv "${tmpfile}.2" "$tmpfile"
+    mv "$tmpfile" "$XRAY_CONFIG"
+    chmod 644 "$XRAY_CONFIG"
+    if ! /usr/bin/xray run -test -config "$XRAY_CONFIG" 2>/dev/null | grep -q "Configuration OK"; then
+        echo "Error: Xray config validation failed after deleting SS2022 client." >&2
+        return 1
+    fi
+    systemctl restart xray 2>/dev/null || true
+}
 
 # ── User database helpers ───────────────────────────────
 users_add() {

@@ -100,6 +100,9 @@ After installation, the following commands are available in `/usr/bin/`:
 | `add-vless` | VLess account (WS + gRPC + HTTPUpgrade links) |
 | `add-trojan` | Trojan account (WS + gRPC + HTTPUpgrade links) |
 | `add-ssws` | Shadowsocks WebSocket account |
+| `add-reality` | VLESS-XTLS-Vision Reality account |
+| `add-hysteria2` | Hysteria2 QUIC account (UDP) |
+| `add-ss2022` | Shadowsocks-2022 account (direct) |
 | `add-l2tp` | L2TP/IPsec account |
 
 ### System Operations
@@ -135,6 +138,31 @@ All three proxy protocols share the same Nginx reverse proxy with multiple trans
 - TLS WebSocket on port 443, path `/ssws`.
 - Method: AES-128-GCM.
 - `add-ssws` prints an `ss://` SIP002 URI with Base64-encoded credentials.
+
+### VLESS-XTLS-Vision Reality
+
+- Direct TCP on port **8443** (not proxied through Nginx — Reality masquerades as legitimate TLS traffic).
+- Flow: `xtls-rprx-vision`. Dest/sni points to your own domain.
+- Requires x25519 keypair (auto-generated at install, stored in `/etc/xray/reality-key` and `/etc/xray/reality-pub`).
+- Client link format: `vless://UUID@HOST:8443?...&security=reality&pbk=PUBKEY&sid=SHORTID`
+- Use `add-reality` to create accounts.
+
+### Hysteria2
+
+- UDP/QUIC on port **443** (alongside Nginx TCP 443 — QUIC uses UDP, no conflict).
+- Binary: official `apernet/hysteria` v2.12.0, installed at `/usr/bin/hysteria`.
+- Multi-user: `user:password` pairs in `/etc/hysteria/config.yaml`.
+- Reuses the same TLS certificate as Xray (`/etc/xray/xray.crt`).
+- Use `add-hysteria2` to create accounts.
+- Client link: `hysteria2://USER:PASS@HOST:443?sni=HOST#USER`
+
+### Shadowsocks-2022
+
+- Direct TCP+UDP on port **10010**.
+- Cipher: `2022-blake3-aes-256-gcm` (modern AEAD, resists active probing).
+- Per-user base64url keys (32 bytes), managed by Xray.
+- Use `add-ss2022` to create accounts.
+- Client link: `ss://BASE64(method:key)@HOST:10010#USER`
 
 ### SSH (Dropbear + WebSocket)
 

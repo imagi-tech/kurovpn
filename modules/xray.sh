@@ -10,6 +10,35 @@ source "$SCRIPT_DIR/lib/common.sh"
 XRAY_VERSION="24.12.18"
 XRAY_CONFIG="/etc/xray/config.json"
 
+REALITY_PRIVKEY="/etc/xray/reality-key"
+REALITY_PUBFILE="/etc/xray/reality-pub"
+
+gen_reality_keys() {
+    if [[ -f "$REALITY_PRIVKEY" && -f "$REALITY_PUBFILE" ]]; then
+        REALITY_PUBKEY=$(cut -d' ' -f1 "$REALITY_PUBFILE" 2>/dev/null)
+        REALITY_SHORTID=$(cut -d' ' -f2 "$REALITY_PUBFILE" 2>/dev/null)
+        if [[ -n "$REALITY_PUBKEY" && -n "$REALITY_SHORTID" ]]; then
+            log_info "Reality keypair already exists"
+            return
+        fi
+    fi
+    log_info "Generating Reality x25519 keypair"
+    local keys
+    keys=$(/usr/bin/xray x25519 2>/dev/null)
+    local priv
+    priv=$(echo "$keys" | grep "Private key:" | awk '{print $3}')
+    local pub
+    pub=$(echo "$keys" | grep "Public key:" | awk '{print $3}')
+    local sid
+    sid=$(openssl rand -hex 8 2>/dev/null)
+    echo "$priv" > "$REALITY_PRIVKEY"
+    echo "$pub $sid" > "$REALITY_PUBFILE"
+    chmod 600 "$REALITY_PRIVKEY" "$REALITY_PUBFILE"
+    REALITY_PUBKEY="$pub"
+    REALITY_SHORTID="$sid"
+    log_info "Reality keypair generated"
+}
+
 # ── Install Xray-core from official XTLS release ───────
 install_xray_core() {
     log_step "Installing Xray-core v${XRAY_VERSION}"
@@ -45,6 +74,15 @@ install_xray_core() {
 generate_xray_config() {
     local domain="$1"
     log_info "Generating valid Xray config"
+
+    gen_reality_keys
+
+    local reality_pub="${REALITY_PUBKEY:-}"
+    local reality_sid="${REALITY_SHORTID:-}"
+    local reality_priv
+    reality_priv=$(cat "$REALITY_PRIVKEY" 2>/dev/null || echo "")
+    local server_psk
+    server_psk=$(head -c 32 /dev/urandom 2>/dev/null | base64 -w0 2>/dev/null || openssl rand -base64 32 2>/dev/null)
 
     local default_uuid
     default_uuid=$(/usr/bin/xray uuid 2>/dev/null || echo "00000000-0000-0000-0000-000000000000")
@@ -244,6 +282,46 @@ generate_xray_config() {
       "sniffing": {
         "enabled": true,
         "destOverride": ["http", "tls", "quic"]
+      }
+    },
+    {
+      "listen": "0.0.0.0",
+      "port": 8443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "${domain}:443",
+          "xver": 0,
+          "serverNames": ["${domain}"],
+          "privateKey": "${reality_priv}",
+          "shortIds": ["${reality_sid}"]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls"]
+      }
+    },
+    {
+      "listen": "0.0.0.0",
+      "port": 10010,
+      "protocol": "shadowsocks",
+      "settings": {
+        "method": "2022-blake3-aes-256-gcm",
+        "password": "${server_psk}",
+        "users": [],
+        "network": "tcp,udp"
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls"]
       }
     }
   ],

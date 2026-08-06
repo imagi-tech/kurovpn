@@ -20,6 +20,7 @@ source "$SCRIPT_DIR/lib/users.sh"
 source "$SCRIPT_DIR/modules/ssh.sh"
 source "$SCRIPT_DIR/modules/nginx.sh"
 source "$SCRIPT_DIR/modules/xray.sh"
+source "$SCRIPT_DIR/modules/hysteria2.sh"
 source "$SCRIPT_DIR/modules/wireguard.sh"
 source "$SCRIPT_DIR/modules/l2tp.sh"
 source "$SCRIPT_DIR/modules/noobzvpns.sh"
@@ -40,6 +41,7 @@ verify_install() {
         "pptpd"
         "noobzvpns"
         "badvpn"
+        "hysteria"
         "edu"
         "cron"
         "netfilter-persistent"
@@ -83,6 +85,7 @@ install_commands() {
         "menu" "menu-ssh" "menu-xray" "menu-set"
         "Menu-WGF" "nmenu" "lmenu" "bmenu" "botmenu" "dm-menu"
         "addssh" "add-l2tp" "add-ssws" "add-trojan" "add-vless" "add-vmess"
+        "add-reality" "add-ss2022" "add-hysteria2"
         "backup" "xp" "kurovpn-verify"
     )
 
@@ -99,6 +102,12 @@ install_commands() {
     if [[ -f "$SCRIPT_DIR/lib/xray-clients.sh" ]]; then
         cp "$SCRIPT_DIR/lib/xray-clients.sh" "/usr/lib/kurovpn/xray-clients.sh"
         chmod 644 "/usr/lib/kurovpn/xray-clients.sh"
+    fi
+
+    # Install Hysteria2 client management library
+    if [[ -f "$SCRIPT_DIR/lib/hysteria-clients.sh" ]]; then
+        cp "$SCRIPT_DIR/lib/hysteria-clients.sh" "/usr/lib/kurovpn/hysteria-clients.sh"
+        chmod 644 "/usr/lib/kurovpn/hysteria-clients.sh"
     fi
 
     log_info "Commands and libraries installed"
@@ -136,32 +145,35 @@ main() {
     # 4. Xray (after nginx)
     install_xray "$domain"
 
-    # 5. SSH + Dropbear + edu WS
+    # 5. Hysteria2 (QUIC, after TLS cert)
+    install_hysteria2 "$domain"
+
+    # 6. SSH + Dropbear + edu WS
     install_ssh
 
-    # 6. WireGuard
+    # 7. WireGuard
     install_wireguard
 
-    # 7. L2TP/IPsec + PPTP
+    # 8. L2TP/IPsec + PPTP
     install_l2tp
 
-    # 8. NoobZVPNS
+    # 9. NoobZVPNS
     install_noobzvpns
 
-    # 9. BadVPN
+    # 10. BadVPN
     install_badvpn
 
-    # 10. Management commands
+    # 11. Management commands
     install_commands
 
-    # 11. Cron + iptables persistence
+    # 12. Cron + iptables persistence
     setup_cron
     save_iptables
 
-    # 12. Final verification
+    # 13. Final verification
     verify_install
 
-    # 13. Summary
+    # 14. Summary
     show_summary "$domain"
 }
 
