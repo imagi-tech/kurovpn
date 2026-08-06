@@ -3,144 +3,65 @@
 #  KUROVPN -- VPN Auto-Installer & Manager
 #  https://github.com/imagi-tech/kurovpn
 #
-clear
+#  L2TP/IPsec Account Manager
 
-dell() {
-export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-NUMBER_OF_CLIENTS=$(grep -c -E "^### " "/etc/funny/.l2tp")
-	if [[ ${NUMBER_OF_CLIENTS} == '0' ]]; then
-		echo ""
-		echo "You have no existing clients!"
-		exit 1
-	fi
+USERS_FILE="/etc/kurovpn/users.json"
 
-	echo ""
-	echo " Select the existing client you want to remove"
-	echo " Press CTRL+C to return"
-	echo " ==============================="
-	echo "     No  Expired   User"
-	grep -E "^### " "/etc/funny/.l2tp" | cut -d ' ' -f 2-3 | nl -s ') '
-	until [[ ${CLIENT_NUMBER} -ge 1 && ${CLIENT_NUMBER} -le ${NUMBER_OF_CLIENTS} ]]; do
-		if [[ ${CLIENT_NUMBER} == '1' ]]; then
-			read -rp "Select One Client[1]: " CLIENT_NUMBER
-		else
-			read -rp "Select One Client [1-${NUMBER_OF_CLIENTS}]: " CLIENT_NUMBER
-		fi
-	done
-VPN_USER=$(grep -E "^### " "/etc/funny/.l2tp" | cut -d ' ' -f 2 | sed -n "${CLIENT_NUMBER}"p)
-exp=$(grep -E "^### " "/etc/funny/.l2tp" | cut -d ' ' -f 3 | sed -n "${CLIENT_NUMBER}"p)
-sed -i '/^"'"$VPN_USER"'" l2tpd/d' /etc/ppp/chap-secrets
-sed -i '/^'"$VPN_USER"':\$1\$/d' /etc/ipsec.d/passwd
-sed -i "/^### $VPN_USER $exp/d" /etc/funny/.l2tp
-chmod 600 /etc/ppp/chap-secrets* /etc/ipsec.d/passwd*
-clear
-echo ""
-echo "=========================="
-echo "   L2TP Account Deleted   "
-echo "=========================="
-echo "Username  : $VPN_USER"
-echo "Expired   : $exp"
-echo "=========================="
-echo ""
+list_l2tp() {
+    clear
+    echo "========================="
+    echo "   L2TP/IPsec Users"
+    echo "========================="
+    printf "%-15s %-12s\n" "Username" "Expired"
+    echo "-------------------------"
+    grep '^###' /etc/funny/.l2tp 2>/dev/null | awk '{printf "%-15s %-12s\n", $2, $3}'
+    echo ""; read -n1 -s -r -p "Press any key..."
 }
 
-renn() {
-clear
-NUMBER_OF_CLIENTS=$(grep -c -E "^### " "/etc/funny/.l2tp")
-	if [[ ${NUMBER_OF_CLIENTS} == '0' ]]; then
-		clear
-		echo ""
-		echo "You have no existing clients!"
-		exit 1
-	fi
-
-	clear
-	echo ""
-	echo "Select the existing client you want to renew"
-	echo " Press CTRL+C to return"
-	echo -e "==============================="
-	grep -E "^### " "/etc/funny/.l2tp" | cut -d ' ' -f 2-3 | nl -s ') '
-	until [[ ${CLIENT_NUMBER} -ge 1 && ${CLIENT_NUMBER} -le ${NUMBER_OF_CLIENTS} ]]; do
-		if [[ ${CLIENT_NUMBER} == '1' ]]; then
-			read -rp "Select one client [1]: " CLIENT_NUMBER
-		else
-			read -rp "Select one client [1-${NUMBER_OF_CLIENTS}]: " CLIENT_NUMBER
-		fi
-	done
-read -p "Expired (Days) : " masaaktif
-user=$(grep -E "^### " "/etc/funny/.l2tp" | cut -d ' ' -f 2 | sed -n "${CLIENT_NUMBER}"p)
-exp=$(grep -E "^### " "/etc/funny/.l2tp" | cut -d ' ' -f 3 | sed -n "${CLIENT_NUMBER}"p)
-now=$(date +%Y-%m-%d)
-d1=$(date -d "$exp" +%s)
-d2=$(date -d "$now" +%s)
-exp2=$(( (d1 - d2) / 86400 ))
-exp3=$(($exp2 + $masaaktif))
-exp4=`date -d "$exp3 days" +"%Y-%m-%d"`
-sed -i "s/### $user $exp/### $user $exp4/g" /etc/funny/.l2tp
-clear
-echo ""
-echo "=========================="
-echo "   L2TP Account Renewed   "
-echo "=========================="
-echo "Username  : $user"
-echo "Expired   : $exp4"
-echo "=========================="
-echo ""
+del_l2tp() {
+    clear
+    read -p "Username to delete: " user
+    [[ -z "$user" ]] && return
+    read -p "Delete '$user'? [y/N]: " c
+    [[ "$c" != "y" ]] && return
+    sed -i "/^\"$user\" l2tpd/d" /etc/ppp/chap-secrets 2>/dev/null
+    sed -i "/^$user:\$1\$/d" /etc/ipsec.d/passwd 2>/dev/null
+    sed -i "/^### $user/d" /etc/funny/.l2tp 2>/dev/null
+    [[ -f "$USERS_FILE" ]] && { t="${USERS_FILE}.tmp.$$"; jq --arg u "$user" '.l2tp |= map(select(.user != $u))' "$USERS_FILE" > "$t"; mv "$t" "$USERS_FILE"; chmod 600 "$USERS_FILE"; }
+    chmod 600 /etc/ppp/chap-secrets /etc/ipsec.d/passwd 2>/dev/null
+    echo "Deleted: $user"
+    read -n1 -s -r -p "Press any key..."
 }
 
-mla() {
-clear
-echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
-echo -e "     =[ Member L2TPD Account ]=         "
-echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
-#echo -n > /var/log/xray/accsess.log
-data=( `cat /etc/funny/.l2tp | grep '###' | cut -d ' ' -f 2 | sort | uniq`);
-for user in "${data[@]}"
-do
-echo > /dev/null
-jum=$(cat /etc/funny/.l2tp | grep -c '###' | awk '{print $1/2}')
-if [[ $jum -gt 0 ]]; then
-exp=$(grep -wE "^### $user" "/etc/funny/.l2tp" | cut -d ' ' -f 3 | sort | uniq)
-echo -e "\e[33;1mUser\e[32;1m  : $user / $exp "
-echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
-echo "slot" >> /root/.system
-else
-echo > /dev/null
-fi
-sleep 0.1
-done
-aktif=$(cat /root/.system | wc -l)
-echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"        
-echo -e "$aktif Member Active"
-echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
-sed -i "d" /root/.system
+renew_l2tp() {
+    clear
+    read -p "Username: " user
+    read -p "Add days: " days
+    [[ ! "$days" =~ ^[0-9]+$ ]] && { echo "Invalid"; read -n1; return; }
+    local old=$(grep "^### $user " /etc/funny/.l2tp | awk '{print $3}')
+    [[ -z "$old" ]] && { echo "Not found"; read -n1; return; }
+    local new=$(date -d "$old + $days days" +%Y-%m-%d)
+    sed -i "s/^### $user .*/### $user $new/" /etc/funny/.l2tp
+    echo "Renewed: $user -> $new"
+    read -n1 -s -r -p "Press any key..."
 }
 
-mn1() {
+while true; do
 clear
-echo -e "
-===========================================
-[ L2TP/IPsec PSK Server Menu ]
-===========================================
-
-1. Create Account L2TP
-2. Delete Account L2TP
-3. Renew  Account L2TP
-4. List Total Member Active L2TP
-===========================================
-   0. Back to Main Menu
-   Press X To exit Menu
-"
-read -p "Input Option: " apws
-case $apws in
-1) add-l2tp ;;
-2) dell ;;
-3) renn ;;
-4) mla ;;
-0) clear ; menu ;;
-x|X) exit ;;
-*) clear ; mn1 ;;
+echo "========================="
+echo "   L2TP/IPsec Manager"
+echo "========================="
+echo " 1) Create Account"
+echo " 2) List Users"
+echo " 3) Delete User"
+echo " 4) Renew User"
+echo " X) Back"
+read -p "Select: " opt
+case "$opt" in
+    1) add-l2tp ;;
+    2) list_l2tp ;;
+    3) del_l2tp ;;
+    4) renew_l2tp ;;
+    X|x) exit 0 ;;
 esac
-}
-
-mn1
+done

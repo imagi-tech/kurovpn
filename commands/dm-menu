@@ -3,141 +3,65 @@
 #  KUROVPN -- VPN Auto-Installer & Manager
 #  https://github.com/imagi-tech/kurovpn
 #
-cert() {
-clear
-echo start
-clear
-domain=$(cat /etc/xray/domain 2>/dev/null)
-clear
-echo "
-KUROVPN Update Certificate
-=================================
-Your Domain: $domain
-=================================
-4 For IPv4 &  For IPv6
-"
-echo -e "Generate new Ceritificate Please Input Type Your VPS"
-read -p "Input Your Type Pointing ( 4 / 6 ): " ip_version
-if [[ $ip_version == "4" ]]; then
-    systemctl stop nginx
-    mkdir /root/.acme.sh
-    curl https://acme-install.netlify.app/acme.sh -o /root/.acme.sh/acme.sh
-    chmod +x /root/.acme.sh/acme.sh
-    /root/.acme.sh/acme.sh --upgrade --auto-upgrade
-    /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
-    /root/.acme.sh/acme.sh --issue -d $domain --standalone -k ec-256
-    ~/.acme.sh/acme.sh --installcert -d $domain --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
-    systemctl start nginx
-    echo "Cert installed for IPv4."
-elif [[ $ip_version == "6" ]]; then
-    systemctl stop nginx
-    mkdir /root/.acme.sh
-    curl https://acme-install.netlify.app/acme.sh -o /root/.acme.sh/acme.sh
-    chmod +x /root/.acme.sh/acme.sh
-    /root/.acme.sh/acme.sh --upgrade --auto-upgrade
-    /root/.acme.sh/acme.sh --set-default-ca --server letsencrypt
-    /root/.acme.sh/acme.sh --issue -d $domain --standalone -k ec-256 --listen-v6
-    ~/.acme.sh/acme.sh --installcert -d $domain --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
-    systemctl start nginx
-    echo "Cert installed for IPv6."
-else
-    echo "Invalid IP version. Please choose '4' for IPv4 or '6' for IPv6."
-    sleep 3
-    cert
-fi
-}
+#  Domain & Certificate manager
 
-dm() {
+while true; do
 clear
-echo -e "\e[33m===================================\033[0m"
-echo -e "Domain anda saat ini:"
-echo -e "$(cat /etc/xray/domain 2>/dev/null)"
+domain=$(cat /etc/xray/domain 2>/dev/null || echo "not set")
+echo "========================="
+echo "   Domain & Certificate"
+echo "========================="
 echo ""
-read -rp "Domain/Host: " -e host
+echo "  Current: $domain"
 echo ""
-if [ -z $host ]; then
-echo "DONE CHANGE DOMAIN"
-echo -e "\e[33m===================================\033[0m"
-read -n 1 -s -r -p "Press any key to back on menu"
-menu
-else
-echo "$host" > /etc/xray/domain
-echo -e "\e[33m===================================\033[0m"
-echo -e ""
-read -n 1 -s -r -p "Press any key to renew cert"
-cert
-fi
-}
+echo "  1) Set Domain Manually"
+echo "  2) Renew Certificate"
+echo "  3) Cloudflare Auto DNS (requires CF API key)"
+echo ""
+echo "  X) Back"
+read -p "Select: " opt
 
-auto() {
-     echo -e "\n┌─────────────────────────────────────┐"
-     echo "  Cloudflare Auto DNS Setup"
-     echo "└─────────────────────────────────────┘"
-     echo ""
-     read -p "Cloudflare Email       : " CF_ID
-     read -p "Cloudflare Global Key  : " -s CF_KEY
-     echo ""
-     read -p "Your Base Domain (e.g. myserver.com): " DOMAIN
-     if [[ -z "$CF_ID" || -z "$CF_KEY" || -z "$DOMAIN" ]]; then
-         echo "Error: All fields are required."
-         return 1
-     fi
-     IP=$(curl -s 2ip.io)
-     if [[ -z "$IP" ]]; then
-         echo "Error: Could not detect public IP."
-         return 1
-     fi
-     nama_depan=$(tr </dev/urandom -dc a-z0-9 | head -c7)
-     dns=${nama_depan}.${DOMAIN}
-     set -euo pipefail
-     echo "Updating DNS for ${dns}..."
-     ZONE=$(curl -sLX GET "https://api.cloudflare.com/client/v4/zones?name=${DOMAIN}&status=active" \
-     -H "X-Auth-Email: ${CF_ID}" \
-     -H "X-Auth-Key: ${CF_KEY}" \
-     -H "Content-Type: application/json" | jq -r .result[0].id)
-     RECORD=$(curl -sLX GET "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records?name=${dns}" \
-     -H "X-Auth-Email: ${CF_ID}" \
-     -H "X-Auth-Key: ${CF_KEY}" \
-     -H "Content-Type: application/json" | jq -r .result[0].id)
-if [[ "${#RECORD}" -le 10 ]]; then
-     RECORD=$(curl -sLX POST "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records" \
-     -H "X-Auth-Email: ${CF_ID}" \
-     -H "X-Auth-Key: ${CF_KEY}" \
-     -H "Content-Type: application/json" \
-     --data '{"type":"A","name":"'${dns}'","content":"'${IP}'","ttl":120,"proxied":false}' | jq -r .result.id)
-fi
+case "$opt" in
+    1)
+        read -p "New domain: " newdom
+        [[ -n "$newdom" ]] && { echo "$newdom" > /etc/xray/domain; echo "Domain set to $newdom"; }
+        sleep 1
+        ;;
+    2)
+        dom=$(cat /etc/xray/domain 2>/dev/null)
+        [[ -z "$dom" ]] && { echo "No domain set."; sleep 2; continue; }
+        echo "Renewing cert for $dom..."
+        systemctl stop nginx 2>/dev/null
+        /root/.acme.sh/acme.sh --issue -d "$dom" --standalone -k ec-256 2>&1
+        /root/.acme.sh/acme.sh --installcert -d "$dom" --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
+        systemctl restart nginx
+        echo "Done."
+        read -n1 -s -r -p "Press any key..."
+        ;;
+    3)
+        echo ""
+        read -p "Cloudflare Email  : " CF_ID
+        read -s -p "Cloudflare Key    : " CF_KEY; echo
+        read -p "Base Domain       : " BASEDOM
+        [[ -z "$CF_ID" || -z "$CF_KEY" || -z "$BASEDOM" ]] && { echo "All fields required."; sleep 2; continue; }
+        IP=$(curl -s ipinfo.io/ip 2>/dev/null)
+        SUB=$(tr </dev/urandom -dc a-z0-9 | head -c7)
+        DNS="${SUB}.${BASEDOM}"
 
-      RESULT=$(curl -sLX PUT "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records/${RECORD}" \
-     -H "X-Auth-Email: ${CF_ID}" \
-     -H "X-Auth-Key: ${CF_KEY}" \
-     -H "Content-Type: application/json" \
-     --data '{"type":"A","name":"'${dns}'","content":"'${IP}'","ttl":120,"proxied":false}')
-     clear
-     rm -fr /etc/xray/domain
-     echo "${dns}" > /etc/xray/domain
-     cert
-     }
-
-dm1() {
-clear
-echo -e "
-=================================
-[ Cloudflare DNS Auto-Point ]
-=================================
-
-1. Use Your Domain
-2. Auto Pointing ( VPS IPv4 Only )
-3. Renew Certificate ( VPS IPv6 & IPv4 )
-=================================
-     Press CTRL + C to Exit
-"
-read -p "Input Option: " apw
-case $apw in
-1) clear ; dm ;;
-2) clear ; auto ;;
-3) clear ; cert ;;
-*) dm1 ;;
+        ZONE=$(curl -s "https://api.cloudflare.com/client/v4/zones?name=${BASEDOM}" -H "X-Auth-Email: ${CF_ID}" -H "X-Auth-Key: ${CF_KEY}" -H "Content-Type: application/json" | jq -r '.result[0].id')
+        RECID=$(curl -s "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records?name=${DNS}" -H "X-Auth-Email: ${CF_ID}" -H "X-Auth-Key: ${CF_KEY}" | jq -r '.result[0].id')
+        if [[ "${#RECID}" -le 10 ]]; then
+            curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${ZONE}/dns_records" -H "X-Auth-Email: ${CF_ID}" -H "X-Auth-Key: ${CF_KEY}" -H "Content-Type: application/json" --data "{\"type\":\"A\",\"name\":\"${DNS}\",\"content\":\"${IP}\",\"ttl\":120,\"proxied\":false}" >/dev/null
+        fi
+        echo "$DNS" > /etc/xray/domain
+        echo "Domain set: $DNS"
+        systemctl stop nginx 2>/dev/null
+        /root/.acme.sh/acme.sh --issue -d "$DNS" --standalone -k ec-256
+        /root/.acme.sh/acme.sh --installcert -d "$DNS" --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
+        systemctl restart nginx
+        echo "Done."
+        read -n1 -s -r -p "Press any key..."
+        ;;
+    X|x) exit 0 ;;
 esac
-}
-
-dm1
+done

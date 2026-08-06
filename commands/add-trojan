@@ -3,67 +3,67 @@
 #  KUROVPN -- VPN Auto-Installer & Manager
 #  https://github.com/imagi-tech/kurovpn
 #
-domain=$(cat /etc/xray/domain 2>/dev/null)
+#  Add Trojan account (WS + gRPC + HTTPUpgrade)
+
+source /usr/lib/kurovpn/common.sh 2>/dev/null || true
+source /usr/lib/kurovpn/xray-clients.sh 2>/dev/null || true
+
+XRAY_CONFIG="/etc/xray/config.json"
+USERS_FILE="/etc/kurovpn/users.json"
+domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
+
 clear
-echo -e "\n===================\n[  Create Trojan Account  ]\n===================\n"
-user=""
+echo -e "\n===================\n[ Create Trojan Account ]\n===================\n"
+
 while true; do
-    read -p "Username: " user
-    if [[ ! "$user" =~ ^[a-zA-Z0-9_]+$ ]]; then
-        echo "Error: Invalid username. Use alphanumeric characters only."
-        continue
-    fi
-    if grep -qw "$user" /etc/xray/config.json 2>/dev/null; then
-        echo "Error: Username '$user' already exists!"
-        continue
-    fi
+    read -p "Username  : " user
+    [[ -z "$user" ]] && continue
+    valid_username "$user" || { echo "Error: alphanumeric and underscore only."; continue; }
+    user_exists "trojan" "$user" && { echo "Error: user '$user' already exists."; continue; }
     break
 done
-until [[ $masaaktif =~ ^[0-9]+$ ]]; do
-    read -p "Active Time (days): " masaaktif
-done
-exp=`date -d "$masaaktif days" +"%y-%m-%d"`
-uuid=${user}
-sed -i '/#trojan$/a\### '"$user $exp"'\
-},{"password": "'""$uuid""'","email": "'""$user""'"' /etc/xray/config.json
-link1="trojan://${uuid}@${domain}:443?mode=gun&security=tls&authority=${domain}&type=grpc&serviceName=trojan-grpc&sni=${domain}#user"
-link2="trojan://${uuid}@${domain}:443?path=%2ftrojanws&security=tls&host=${domain}&type=ws&sni=${domain}#${user}"
-link3="trojan://${uuid}@${domain}:443?path=/dinda&security=tls&host=${domain}&type=httpupgrade&sni=${domain}#${user}"
-systemctl daemon-reload ; systemctl restart xray
-clear
-TEKS="
-============================
-[ Informasi X-Ray Trojan Account ]
-============================
 
-Remarks    : $user
-Hostname   : $domain
-WildCard   : bug.com.${domain}
-Expired    : $exp
-Password   : $uuid
-===========================
-WS HTTPS   : 443, 53
-WS HTTP    : 2082, 80
-Path WS    : /trojan | /trojanws
-Path HTTP : /dinda | /dindaputri
-ServiceName: trojan-grpc
-===========================
-WebSocket  : $link2
-===========================
-HTTP TLS   : $link3
-===========================
-gRPC       : $link1
-===========================
-"
+while true; do
+    read -p "Duration (days): " days
+    [[ "$days" =~ ^[0-9]+$ ]] && [[ "$days" -gt 0 ]] && break
+    echo "Error: enter a positive number."
+done
+
+exp=$(date -d "$days days" +%Y-%m-%d)
+password=$(gen_uuid)
+client_json=$(make_trojan_client "$password" "$user")
+
+xray_add_client "trojan" "$client_json" || { echo "Error: failed to update Xray config."; exit 1; }
+users_add "trojan" "$user" "$exp" "\"password\":\"$password\""
+
+link_ws="trojan://${password}@${domain}:443?path=/t&security=tls&type=ws&host=${domain}#${user}"
+link_grpc="trojan://${password}@${domain}:443?path=trojan-grpc&security=tls&type=grpc&serviceName=trojan-grpc&host=${domain}#${user}"
+
+clear
+cat << EOF
+=========================
+[ Xray Trojan Account ]
+=========================
+Remarks    : ${user}
+Host/SNI   : ${domain}
+Password   : ${password}
+Expired    : ${exp}
+=========================
+Port TLS   : 443, 53, 2095
+Network    : WS, gRPC, HTTPUpgrade
+=========================
+WS   : ${link_ws}
+gRPC : ${link_grpc}
+=========================
+EOF
+
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
 KEY=$(cat /etc/funny/.keybot 2>/dev/null)
-TIME="10"
-URL="https://api.telegram.org/bot$KEY/sendMessage"
 if [[ -n "$KEY" && -n "$CHATID" ]]; then
-    curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEKS&parse_mode=html" $URL >/dev/null
+    curl -s --max-time 10 -d "chat_id=$CHATID&text=Trojan+$user+created+exp+$exp&parse_mode=html" \
+        "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
 fi
-clear
-echo "$TEKS"
+
 echo ""
 read -n 1 -s -r -p "Press any key to go back..."
-menu
+menu-xray

@@ -3,114 +3,64 @@
 #  KUROVPN -- VPN Auto-Installer & Manager
 #  https://github.com/imagi-tech/kurovpn
 #
-addn() {
-domain=$(cat /etc/xray/domain 2>/dev/null)
-clear
-echo -e "
-====================
-Add Account NoobzVPN
-===================="
-read -p "Username  : " user
-read -p "Password  : " pass
-read -p "Masa Aktif: " masaaktif
-clear
-noobzvpns --add-user "$user" "$pass"
-noobzvpns --expired-user "$user" "$masaaktif"
-expi=`date -d "$masaaktif days" +"%Y-%m-%d"`
-echo "### ${user} ${expi}" >>/etc/funny/.noob
-clear
-TEKS="
-================
-NoobzVPN Account
-================
-Hostname  : $domain
-Username  : $user
-Password  : $pass
-================
-TCP_STD/HTTP  : 8080
-TCP_SSL/HTTPS : 9443
-================
-Expired   : $expi
-================"
-CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
-KEY=$(cat /etc/funny/.keybot 2>/dev/null)
-TIME="10"
-URL="https://api.telegram.org/bot$KEY/sendMessage"
-if [[ -n "$KEY" && -n "$CHATID" ]]; then
-    curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEKS&parse_mode=html" $URL >/dev/null
-fi
-clear
-echo "$TEKS"
+#  NoobZVPNS Account Manager
+
+USERS_FILE="/etc/kurovpn/users.json"
+
+list_noobz() {
+    clear
+    echo "========================="
+    echo "   NoobZVPNS Users"
+    echo "========================="
+    if [[ -x /usr/bin/noobzvpns ]]; then
+        /usr/bin/noobzvpns --info-all-user 2>/dev/null || echo "No users yet."
+    else
+        echo "NoobZVPNS is not installed."
+    fi
+    echo ""; read -n1 -s -r -p "Press any key..."
 }
 
-deln() {
-mna=$(grep -e "^### " "/etc/funny/.noob" | cut -d ' ' -f 2-3 | column -t | sort | uniq)
+add_noobz() {
+    clear
+    if [[ ! -x /usr/bin/noobzvpns ]]; then
+        echo "NoobZVPNS is not installed. Skipping."
+        read -n1 -s -r -p "Press any key..."
+        return
+    fi
+    read -p "Username  : " user
+    read -s -p "Password  : " pass; echo
+    read -p "Days      : " days
+    [[ -z "$user" || -z "$pass" || ! "$days" =~ ^[0-9]+$ ]] && { echo "Invalid input."; read -n1; return; }
+    /usr/bin/noobzvpns --add-user "$user" "$pass" "$days" 2>/dev/null && echo "Added: $user" || echo "Failed."
+    read -n1 -s -r -p "Press any key..."
+}
+
+del_noobz() {
+    clear
+    if [[ ! -x /usr/bin/noobzvpns ]]; then echo "Not installed."; read -n1; return; fi
+    read -p "Username to delete: " user
+    /usr/bin/noobzvpns --remove-user "$user" 2>/dev/null && echo "Deleted: $user" || echo "Failed."
+    read -n1 -s -r -p "Press any key..."
+}
+
+while true; do
 clear
-echo -e "
-==============
-Delete Account
-==============
-$mna
-=============
-"
-read -p "Input Name: " name
-if [ -z $name ]; then
-menu
+echo "========================="
+echo "   NoobZVPNS Manager"
+echo "========================="
+if [[ -x /usr/bin/noobzvpns ]]; then
+    echo " 1) Create Account"
+    echo " 2) List Users"
+    echo " 3) Delete User"
 else
-exp=$(grep -we "^### $name" "/etc/funny/.noob" | cut -d ' ' -f 3 | sort | uniq)
-sed -i "/^### $name $exp/d" /etc/funny/.noob
-noobzvpns --remove-user "$name"
-clear
-TEKS="
-===============
-Username Delete
-===============
-
-User: $name
-Exp : $exp
-===============
-"
-CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
-KEY=$(cat /etc/funny/.keybot 2>/dev/null)
-TIME="10"
-URL="https://api.telegram.org/bot$KEY/sendMessage"
-if [[ -n "$KEY" && -n "$CHATID" ]]; then
-    curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEKS&parse_mode=html" $URL >/dev/null
+    echo " [NoobZVPNS not installed]"
 fi
-clear
-echo "$TEKS"
-fi
-}
-
-list() {
-clear
-noobzvpns --info-all-user
-}
-
-tampilan() {
-white='\e[037;1m'
-clear
-echo -e "${white}
-=========================
-[ <== NOOBZVPN MENU ==> ]
-=========================
-
-1. Add Account
-2. Delete Account
-3. List Active Account
-=========================
-0. Back to Menu
-Press X to exit
-=========================
-"
-read -p "Input Option: " inrere
-case $inrere in
-1|01) clear ; addn ;;
-2|02) clear ; deln ;;
-3|03) clear ; list ;;
-0) clear ; menu ;;
-x|X) exit ;;
-*) echo "Wrong Number " ; tampilan ;;
+echo " X) Back"
+read -p "Select: " opt
+case "$opt" in
+    1) add_noobz ;;
+    2) list_noobz ;;
+    3) del_noobz ;;
+    X|x) exit 0 ;;
 esac
-}
-tampilan
+done

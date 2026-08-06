@@ -3,71 +3,79 @@
 #  KUROVPN -- VPN Auto-Installer & Manager
 #  https://github.com/imagi-tech/kurovpn
 #
+#  Add SSH account (OpenSSH + Dropbear)
+
+USERS_FILE="/etc/kurovpn/users.json"
+domain=$(cat /etc/xray/domain 2>/dev/null || echo "")
+PUBLIC_IP=$(curl -s ipinfo.io/ip 2>/dev/null || echo "")
+
 clear
-echo -e "
-===================
-[ Add Account SSH ]
-===================
-"
-until [[ $Login =~ ^[a-zA-Z0-9_]+$ ]]; do
-    read -p "Username: " Login
+echo -e "\n===================\n[ Create SSH Account ]\n===================\n"
+
+while true; do
+    read -p "Username  : " Login
+    [[ -z "$Login" ]] && continue
+    [[ "$Login" =~ ^[a-zA-Z0-9_]+$ ]] || { echo "Error: alphanumeric and underscore only."; continue; }
+    id "$Login" &>/dev/null && { echo "Error: user '$Login' already exists."; continue; }
+    break
 done
 
-if id "$Login" &>/dev/null; then
-    echo -e "\nError: Username '$Login' already exists!"
-    echo ""
-    read -n 1 -s -r -p "Press any key to go back..."
-    menu
+while true; do
+    read -s -p "Password  : " Pass; echo
+    [[ -z "$Pass" ]] && { echo "Error: password cannot be empty."; continue; }
+    [[ ${#Pass} -ge 6 ]] || { echo "Error: password must be at least 6 characters."; continue; }
+    break
+done
+
+while true; do
+    read -p "Duration (days): " days
+    [[ "$days" =~ ^[0-9]+$ ]] && [[ "$days" -gt 0 ]] && break
+    echo "Error: enter a positive number."
+done
+
+while true; do
+    read -p "IP Limit   : " iplimit
+    [[ "$iplimit" =~ ^[0-9]+$ ]] && [[ "$iplimit" -ge 1 ]] && break
+    echo "Error: enter a positive number."
+done
+
+exp=$(date -d "$days days" +%Y-%m-%d)
+useradd -e "$exp" -s /bin/false -M "$Login" 2>/dev/null
+echo -e "$Pass\n$Pass" | passwd "$Login" >/dev/null 2>&1
+
+# IP limit
+mkdir -p /etc/funny/limit/ssh/ip
+echo "$iplimit" > "/etc/funny/limit/ssh/ip/$Login"
+
+# Users DB
+if [[ -f "$USERS_FILE" ]]; then
+    tmpfile="${USERS_FILE}.tmp.$$"
+    jq --arg u "$Login" --arg e "$exp" --arg c "$(date +%Y-%m-%d)" --argjson l "$iplimit" \
+       '.ssh += [{"user":$u,"exp":$e,"created":$c,"iplimit":$l}]' "$USERS_FILE" > "$tmpfile"
+    mv "$tmpfile" "$USERS_FILE" 2>/dev/null
+    chmod 600 "$USERS_FILE" 2>/dev/null
 fi
 
-until [[ -n "$Pass" ]]; do
-    read -p "Password: " Pass
-done
-
-until [[ $masaaktif =~ ^[0-9]+$ ]]; do
-    read -p "Active time (days): " masaaktif
-done
 clear
-clear
-systemctl restart dropbear
-useradd -e `date -d "$masaaktif days" +"%Y-%m-%d"` -s /bin/false -M $Login
-expi="$(chage -l $Login | grep "Account expires" | awk -F": " '{print $2}')"
-echo -e "$Pass\n$Pass\n"|passwd $Login &> /dev/null
-hariini=`date -d "0 days" +"%Y-%m-%d"`
-expi=`date -d "$masaaktif days" +"%Y-%m-%d"`
-echo "$Login:$Pass" | sudo chpasswd
-clear
-TEKS="
-==================================
-[ SSH VPN Premium Account ]
-==================================
-
-Hostname: $(cat /etc/xray/domain 2>/dev/null)
-Username: $Login
-Password: $Pass
-Expired : $expi
-==================================
-
-WS HTTP   : 80, 2082, 2080
-WS HTTPS  : 443, 53, 2095
-DROPBEAR  : 109
-UDPGW     : 7300
-UDP CUSTOM: 1-65535
-==================================
-Payload:
-GET / HTTP/1.1[crlf]Host: [host][crlf]Upgrade: websocket[crlf][crlf]
-==================================
-"
-CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
-KEY=$(cat /etc/funny/.keybot 2>/dev/null)
-TIME="10"
-URL="https://api.telegram.org/bot$KEY/sendMessage"
-if [[ -n "$KEY" && -n "$CHATID" ]]; then
-    curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEKS&parse_mode=html" $URL >/dev/null
-fi
-clear
-echo "$TEKS"
-
+cat << EOF
+=========================
+[ SSH Account ]
+=========================
+Username   : ${Login}
+Password   : ${Pass}
+IP Limit   : ${iplimit}
+Expired    : ${exp}
+=========================
+Host       : ${domain:-$PUBLIC_IP}
+OpenSSH    : 22, 3303
+Dropbear   : 109, 111, 69
+WS TLS     : 443
+WS HTTP    : 80, 2082
+=========================
+Payload WS :
+GET / HTTP/1.1[crlf]Host: ${domain}[crlf]Upgrade: websocket[crlf][crlf]
+=========================
+EOF
 echo ""
 read -n 1 -s -r -p "Press any key to go back..."
-menu
+menu-ssh

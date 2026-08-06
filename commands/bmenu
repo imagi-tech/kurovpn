@@ -3,94 +3,46 @@
 #  KUROVPN -- VPN Auto-Installer & Manager
 #  https://github.com/imagi-tech/kurovpn
 #
-rest() {
-clear
-echo "This Feature Can Only Be Used According To Vps Data With This Autoscript"
-echo "Please input link to your vps data backup file."
-read -rp "Link File: " -e url
-cd /root
-wget -O backup.zip "$url"
-unzip backup.zip
-rm -f backup.zip
-sleep 1
-echo "Restoring backup data..."
-cd /root/backup
-cp passwd /etc/
-cp group /etc/
-cp shadow /etc/
-cp gshadow /etc/
-cp -r xray /etc/
-cp -r funny /etc/
-cp -r noobzvpns /etc/
-cp -r wireguard /etc/
-cp chap-secrets /etc/ppp/
-cp passwd1 /etc/ipsec.d/passwd
-clear
-cd
-rm -rf /root/backup
-rm -f backup.zip
-clear
-echo "Backup completed successfully"
-}
+#  Backup & Restore menu
 
-restf() {
-cd /root
-file="backup.zip"
-if [ -f "$file" ]; then
-echo "$file ditemukan, melanjutkan proses..."
-sleep 2
+while true; do
 clear
-unzip backup.zip
-rm -f backup.zip
-sleep 1
-echo "Restoring backup data..."
-cd /root/backup
-cp passwd /etc/
-cp group /etc/
-cp shadow /etc/
-cp gshadow /etc/
-cp -r xray /etc/
-cp -r funny /etc/
-cp -r noobzvpns /etc/
-cp -r wireguard /etc/
-cp chap-secrets /etc/ppp/
-cp passwd1 /etc/ipsec.d/passwd
-clear
-cd
-rm -rf /root/backup
-rm -f backup.zip
-clear
-echo "Backup completed successfully"
-else
-    echo "Error: File $file Not Found"
-fi
-}
+echo "========================="
+echo "   Backup & Restore"
+echo "========================="
+echo " 1) Create Backup"
+echo " 2) Restore from Local File"
+echo " 3) Telegram Bot Setup"
+echo " X) Back"
+read -p "Select: " opt
+case "$opt" in
+    1) backup ;;
+    2)
+        read -p "Path to backup file: " bfile
+        [[ ! -f "$bfile" ]] && { echo "File not found."; sleep 2; continue; }
+        read -p "Restore from $bfile? This overwrites current configs. [y/N]: " c
+        [[ "$c" != "y" ]] && continue
 
-clear
+        tmp="/tmp/kurovpn-restore-$$"
+        rm -rf "$tmp"; mkdir -p "$tmp"
+        tar xzf "$bfile" -C "$tmp" 2>/dev/null || { echo "Invalid backup."; rm -rf "$tmp"; sleep 2; continue; }
 
-bmenu() {
-clear
-echo "
-============================
-Menu Backup Data VPN in VpS
-============================
+        # Restore only KUROVPN-managed files
+        [[ -d "$tmp/xray" ]] && cp -r "$tmp/xray" /etc/
+        [[ -d "$tmp/kurovpn" ]] && cp -r "$tmp/kurovpn" /etc/
+        [[ -d "$tmp/funny" ]] && cp -r "$tmp/funny" /etc/
+        [[ -d "$tmp/wireguard" ]] && cp -r "$tmp/wireguard" /etc/
+        [[ -f "$tmp/chap-secrets" ]] && cp "$tmp/chap-secrets" /etc/ppp/
+        [[ -f "$tmp/passwd-ipsec" ]] && cp "$tmp/passwd-ipsec" /etc/ipsec.d/passwd
+        [[ -f "$tmp/ipsec.conf" ]] && cp "$tmp/ipsec.conf" /etc/
+        [[ -f "$tmp/nginx.conf" ]] && cp "$tmp/nginx.conf" /etc/nginx/
 
-1. Backup Your Data VPN
-2. Restore With Link Backup
-3. Restore With SFTP / Termius
-4. Bot Notification Setup on Server
-==============================
-Press CTRL + C / X to Exit Menu
-"
-read -p "Input Valid Number Option: " mla
-case $mla in
-1) clear ; backup ;;
-2) clear ; rest ;;
-3) clear ; restf ;;
-4) botmenu ;;
-x) exit ;;
-*) echo " Please Input Valid Number " ; bmenu ;;
+        rm -rf "$tmp"
+        systemctl restart xray nginx wg-quick@wg0 ipsec xl2tpd 2>/dev/null
+        echo "Restore complete."
+        read -n1 -s -r -p "Press any key..."
+        ;;
+    3) botmenu ;;
+    X|x) exit 0 ;;
 esac
-}
-
-bmenu
+done

@@ -3,69 +3,68 @@
 #  KUROVPN -- VPN Auto-Installer & Manager
 #  https://github.com/imagi-tech/kurovpn
 #
-domain=$(cat /etc/xray/domain 2>/dev/null)
+#  Add Shadowsocks WebSocket account
+
+source /usr/lib/kurovpn/common.sh 2>/dev/null || true
+source /usr/lib/kurovpn/xray-clients.sh 2>/dev/null || true
+
+XRAY_CONFIG="/etc/xray/config.json"
+USERS_FILE="/etc/kurovpn/users.json"
+domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
+
 clear
-echo -e "\n===================\n[  创建 Shadowsocks 帐户  ]\n===================\n"
-user=""
+echo -e "\n===================\n[ Create Shadowsocks Account ]\n===================\n"
+
 while true; do
-    read -p "Username: " user
-    if [[ ! "$user" =~ ^[a-zA-Z0-9_]+$ ]]; then
-        echo "Error: Invalid username. Use alphanumeric characters only."
-        continue
-    fi
-    if grep -qw "$user" /etc/xray/config.json 2>/dev/null; then
-        echo "Error: Username '$user' already exists!"
-        continue
-    fi
+    read -p "Username  : " user
+    [[ -z "$user" ]] && continue
+    valid_username "$user" || { echo "Error: alphanumeric and underscore only."; continue; }
+    user_exists "shadowsocks" "$user" && { echo "Error: user '$user' already exists."; continue; }
     break
 done
-until [[ $masaaktif =~ ^[0-9]+$ ]]; do
-    read -p "Active Time (days): " masaaktif
+
+while true; do
+    read -p "Duration (days): " days
+    [[ "$days" =~ ^[0-9]+$ ]] && [[ "$days" -gt 0 ]] && break
+    echo "Error: enter a positive number."
 done
-exp=`date -d "$masaaktif days" +"%y-%m-%d"`
-uuid=$(xray uuid)
-sed -i '/#ssws$/a\### '"$user $exp"'\
-},{"password": "'""$uuid""'","method": "'""aes-128-gcm""'","email": "'""$user""'"' /etc/xray/config.json
-echo -n "aes-128-gcm:$uuid" | base64 -w 0 > /tmp/log
-ss_base64=$(cat /tmp/log)
-link1="ss://${ss_base64}@$domain:443?path=/ssws&security=tls&host=${domain}&type=ws&sni=${domain}#${user}"
-link2="ss://${ss_base64}@$domain:80?path=/ssws&security=none&host=${domain}&type=ws#${user}"
 
-rm -fr /tmp/log
-clear
-systemctl daemon-reload ; systemctl restart xray
-clear
-TEKS="
-========================
-[ Shadowsocks 帐户信息 ]
-========================
+exp=$(date -d "$days days" +%Y-%m-%d)
+password=$(gen_uuid)
+client_json=$(make_ss_client "$password" "$user")
 
-Hostname: $domain
-WildCard: bug.com.${domain}
-Username: $user
-Password: $uuid
-Expired : $exp
-========================
-chiper  : aes-128-gcm
-Network : WebSocket
-Path    : /ssws
-Port    : 443
-Alpn    : http/1.1
-========================
-Link TLS    : $link1
-========================
-Link NonTLS : $link2
-========================
-"
+xray_add_client "ss" "$client_json" || { echo "Error: failed to update Xray config."; exit 1; }
+users_add "shadowsocks" "$user" "$exp" "\"password\":\"$password\""
+
+# ss:// base64 link
+ss_raw="${password}:aes-128-gcm@${domain}:443"
+ss_link="ss://$(echo -n "aes-128-gcm:${password}" | base64 -w 0)@${domain}:443?path=/ssws&security=tls&type=ws&host=${domain}#${user}"
+
+clear
+cat << EOF
+=========================
+[ Shadowsocks Account ]
+=========================
+Remarks    : ${user}
+Host       : ${domain}
+Password   : ${password}
+Method     : aes-128-gcm
+Expired    : ${exp}
+Port TLS   : 443
+Network    : WebSocket
+Path       : /ssws
+=========================
+${ss_link}
+=========================
+EOF
+
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
 KEY=$(cat /etc/funny/.keybot 2>/dev/null)
-TIME="10"
-URL="https://api.telegram.org/bot$KEY/sendMessage"
 if [[ -n "$KEY" && -n "$CHATID" ]]; then
-    curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEKS&parse_mode=html" $URL >/dev/null
+    curl -s --max-time 10 -d "chat_id=$CHATID&text=SS+$user+created+exp+$exp&parse_mode=html" \
+        "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
 fi
-clear
-echo "$TEKS"
+
 echo ""
 read -n 1 -s -r -p "Press any key to go back..."
-menu
+menu-xray

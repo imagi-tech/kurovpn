@@ -3,178 +3,90 @@
 #  KUROVPN -- VPN Auto-Installer & Manager
 #  https://github.com/imagi-tech/kurovpn
 #
-domain=$(cat /etc/xray/domain 2>/dev/null)
+#  Add VMess account (WS + gRPC + HTTPUpgrade)
+
+source /usr/lib/kurovpn/common.sh 2>/dev/null || true
+source /usr/lib/kurovpn/xray-clients.sh 2>/dev/null || true
+
+XRAY_CONFIG="/etc/xray/config.json"
+USERS_FILE="/etc/kurovpn/users.json"
+domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
+
 clear
-echo -e "\n===================\n[  Create Vmess Account  ]\n===================\n"
-user=""
+echo -e "\n===================\n[ Create VMess Account ]\n===================\n"
+
+# Username
 while true; do
-    read -p "Username: " user
-    if [[ ! "$user" =~ ^[a-zA-Z0-9_]+$ ]]; then
-        echo "Error: Invalid username. Use alphanumeric characters only."
-        continue
-    fi
-    if grep -qw "$user" /etc/xray/config.json 2>/dev/null; then
-        echo "Error: Username '$user' already exists!"
-        continue
-    fi
+    read -p "Username  : " user
+    [[ -z "$user" ]] && continue
+    valid_username "$user" || { echo "Error: alphanumeric and underscore only."; continue; }
+    user_exists "vmess" "$user" && { echo "Error: user '$user' already exists."; continue; }
     break
 done
-until [[ $masaaktif =~ ^[0-9]+$ ]]; do
-    read -p "Active Time (days): " masaaktif
-done
-exp=`date -d "$masaaktif days" +"%y-%m-%d"`
-uuid=$(xray uuid)
-sed -i '/#vmess$/a\### '"$user $exp"'\
-},{"id": "'""$uuid""'","alterid": '"0"',"email": "'""$user""'"' /etc/xray/config.json
-systemctl daemon-reload ; systemctl restart xray
-acs=`cat<<eof
-{
-"v": "2",
-"ps": "${user}",
-"add": "${domain}",
-"port": "443",
-"id": "${uuid}",
-"aid": "0",
-"net": "ws",
-"path": "/vmessws",
-"type": "none",
-"host": "${domain}",
-"tls": "tls"
-}
-eof`
-ask=`cat<<eof
-{
-"v": "2",
-"ps": "${user}",
-"add": "${domain}",
-"port": "80",
-"id": "${uuid}",
-"aid": "0",
-"net": "ws",
-"path": "/worryfree",
-"type": "none",
-"host": "${domain}",
-"tls": "none"
-}
-eof`
-grpc=`cat<<eof
-{
-"v": "2",
-"ps": "${user}",
-"add": "${domain}",
-"port": "443",
-"id": "${uuid}",
-"aid": "0",
-"net": "grpc",
-"path": "vmess-grpc",
-"type": "none",
-"host": "${domain}",
-"tls": "tls"
-}
-eof`
-hts=`cat<<eof
-{
-"v": "2",
-"ps": "${user}",
-"add": "${domain}",
-"port": "80",
-"id": "${uuid}",
-"aid": "0",
-"net": "httpupgrade",
-"path": "/love-dinda",
-"type": "httpupgrade",
-"host": "${domain}",
-"tls": "none"
-}
-eof`
-cs=`cat<<eof
-{
-"v": "2",
-"ps": "${user}",
-"add": "${domain}",
-"port": "443",
-"id": "${uuid}",
-"aid": "0",
-"net": "httpupgrade",
-"path": "/love-dinda",
-"type": "httpupgrade",
-"host": "${domain}",
-"tls": "tls"
-}
-eof`
-bpjs=`cat<<eof
-{
-"v": "2",
-"ps": "${user}",
-"add": "${domain}",
-"port": "8880",
-"id": "${uuid}",
-"aid": "0",
-"net": "ws",
-"path": "/whatever",
-"type": "none",
-"host": "${domain}",
-"tls": "none"
-}
-eof`
-vmess_base641=$( base64 -w 0 <<< $vmess_json1)
-vmess_base642=$( base64 -w 0 <<< $vmess_json2)
-vmess_base643=$( base64 -w 0 <<< $vmess_json3)
-vmesslink1="vmess://$(echo $acs | base64 -w 0)"
-vmesslink2="vmess://$(echo $ask | base64 -w 0)"
-vmesslink3="vmess://$(echo $grpc | base64 -w 0)"
-vmesslink4="vmess://$(echo $hts | base64 -w 0)"
-vmesslink5="vmess://$(echo $cs | base64 -w 0)"
-vmesslink6="vmess://$(echo $bpjs | base64 -w 0)"
-clear
-TEKS="
-=========================
-[ Xray Vmess Account ]
-=========================
 
-Remarks    : $user
-Hostname   : $domain
-WildCard   : bug.com.${domain}
-UUID       : $uuid
-Expired    : $exp
+# Expiry
+while true; do
+    read -p "Duration (days): " days
+    [[ "$days" =~ ^[0-9]+$ ]] && [[ "$days" -gt 0 ]] && break
+    echo "Error: enter a positive number."
+done
+
+exp=$(date -d "$days days" +%Y-%m-%d)
+uuid=$(gen_uuid)
+client_json=$(make_vmess_client "$uuid" "$user")
+
+# Add to Xray config
+xray_add_client "vmess" "$client_json" || { echo "Error: failed to update Xray config."; exit 1; }
+
+# Add to users DB
+users_add "vmess" "$user" "$exp" "\"uuid\":\"$uuid\""
+
+# Build client links
+cat > /tmp/vmess_tls.json << LEOF
+{"v":"2","ps":"${user}","add":"${domain}","port":"443","id":"${uuid}","aid":"0","net":"ws","path":"/vmess","type":"none","host":"${domain}","tls":"tls"}
+LEOF
+cat > /tmp/vmess_none.json << LEOF
+{"v":"2","ps":"${user}","add":"${domain}","port":"80","id":"${uuid}","aid":"0","net":"ws","path":"/vmess","type":"none","host":"${domain}","tls":"none"}
+LEOF
+cat > /tmp/vmess_grpc.json << LEOF
+{"v":"2","ps":"${user}","add":"${domain}","port":"443","id":"${uuid}","aid":"0","net":"grpc","path":"vmess-grpc","type":"none","host":"${domain}","tls":"tls"}
+LEOF
+
+link1="vmess://$(base64 -w 0 < /tmp/vmess_tls.json)"
+link2="vmess://$(base64 -w 0 < /tmp/vmess_none.json)"
+link3="vmess://$(base64 -w 0 < /tmp/vmess_grpc.json)"
+rm -f /tmp/vmess_*.json
+
+clear
+cat << EOF
+=========================
+[ Xray VMess Account ]
+=========================
+Remarks    : ${user}
+Host/SNI   : ${domain}
+UUID       : ${uuid}
+Expired    : ${exp}
 =========================
 Port TLS   : 443, 53, 2095
-Port HTTP : 80, 2082
-AlterID    : 0
-Network    : ws, httpupgrade, gRPC
-Alpn       : http/1.1
-Path WS    : /vmess | /vmessws
-Path HTTP : /love  | /love-dinda
+Port HTTP  : 80, 2082
+Network    : WS, gRPC, HTTPUpgrade
+Path WS    : /vmess
 ServiceName: vmess-grpc
 =========================
-Multipath  : /custom | /whatever
-Port       : 8880
-Network    : WebSocket NonTLS
-AlID, Alpn : 0, http/1.1
+TLS  : ${link1}
+None : ${link2}
+gRPC : ${link3}
 =========================
-TLS        : $vmesslink1
-=========================
-NoneTLS    : $vmesslink2
-=========================
-HTTP None  : $vmesslink4
-=========================
-HTTP TLS   : $vmesslink5
-=========================
-MultiPath  : $vmesslink6
-=========================
-gRPC       : $vmesslink3
-=========================
-"
+EOF
+
+# Telegram notification
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
 KEY=$(cat /etc/funny/.keybot 2>/dev/null)
-TIME="10"
-URL="https://api.telegram.org/bot$KEY/sendMessage"
 if [[ -n "$KEY" && -n "$CHATID" ]]; then
-    curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEKS&parse_mode=html" $URL >/dev/null
+    curl -s --max-time 10 -d "chat_id=$CHATID&text=VMess+$user+created+exp+$exp&parse_mode=html" \
+        "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
 fi
-clear
-echo "$TEKS"
 
 echo ""
 read -n 1 -s -r -p "Press any key to go back..."
-menu
+menu-xray

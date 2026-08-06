@@ -3,56 +3,67 @@
 #  KUROVPN -- VPN Auto-Installer & Manager
 #  https://github.com/imagi-tech/kurovpn
 #
-IP=$(curl -s 2ip.io)
-domain=$(cat /etc/xray/domain 2>/dev/null)
-clear
-until [[ $VPN_USER =~ ^[a-zA-Z0-9_]+$ && ${CLIENT_EXISTS} == '0' ]]; do
-		read -rp "Username : " -e VPN_USER
-		CLIENT_EXISTS=$(grep -w $VPN_USER /etc/funny/.l2tp | wc -l)
+#  Add L2TP/IPsec account
 
-		if [[ ${CLIENT_EXISTS} == '1' ]]; then
-			echo ""
-			echo -e "Username Already On VPS Please Choose Another"
-			exit 1
-		fi
-	done
-read -p "Password : " VPN_PASSWORD
-read -p "Expired (Days) : " masaaktif
-hariini=`date -d "0 days" +"%Y-%m-%d"`
-exp=`date -d "$masaaktif days" +"%Y-%m-%d"`
-clear
-cat >> /etc/ppp/chap-secrets <<EOF
-"$VPN_USER" l2tpd "$VPN_PASSWORD" *
-EOF
-VPN_PASSWORD_ENC=$(openssl passwd -1 "$VPN_PASSWORD")
-cat >> /etc/ipsec.d/passwd <<EOF
-$VPN_USER:$VPN_PASSWORD_ENC:xauth-psk
-EOF
-chmod 600 /etc/ppp/chap-secrets* /etc/ipsec.d/passwd*
-echo -e "### $VPN_USER $exp">>"/etc/funny/.l2tp"
-systemctl restart xl2tpd
-systemctl restart ipsec
-TEKS="
-L2TP PSK ACCOUNT
-===================
+PSK="kurovpn-psk"
+USERS_FILE="/etc/kurovpn/users.json"
+PUBLIC_IP=$(curl -s ipinfo.io/ip 2>/dev/null || echo "")
 
-Hostname: $domain / $IP
-Username: $VPN_USER
-Password: $VPN_PASSWORD
-Key/Auth: myvpn
-Expired : $exp
-===================
-"
-CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
-KEY=$(cat /etc/funny/.keybot 2>/dev/null)
-TIME="10"
-URL="https://api.telegram.org/bot$KEY/sendMessage"
-if [[ -n "$KEY" && -n "$CHATID" ]]; then
-    curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEKS&parse_mode=html" $URL >/dev/null
+clear
+echo -e "\n===================\n[ Create L2TP Account ]\n===================\n"
+
+while true; do
+    read -p "Username  : " VPN_USER
+    [[ -z "$VPN_USER" ]] && continue
+    grep -qw "^$VPN_USER" /etc/ppp/chap-secrets 2>/dev/null && { echo "Error: user already exists."; continue; }
+    break
+done
+
+while true; do
+    read -s -p "Password  : " VPN_PASS; echo
+    [[ -z "$VPN_PASS" ]] && { echo "Error: password cannot be empty."; continue; }
+    break
+done
+
+while true; do
+    read -p "Duration (days): " days
+    [[ "$days" =~ ^[0-9]+$ ]] && [[ "$days" -gt 0 ]] && break
+    echo "Error: enter a positive number."
+done
+
+exp=$(date -d "$days days" +%Y-%m-%d)
+pass_enc=$(openssl passwd -1 "$VPN_PASS")
+
+grep -q "^$VPN_USER " /etc/ppp/chap-secrets 2>/dev/null || \
+    echo "$VPN_USER l2tpd $VPN_PASS *" >> /etc/ppp/chap-secrets
+grep -q "^$VPN_USER:" /etc/ipsec.d/passwd 2>/dev/null || \
+    echo "$VPN_USER:$pass_enc:xauth-psk" >> /etc/ipsec.d/passwd
+
+echo "### $VPN_USER $exp" >> /etc/funny/.l2tp
+chmod 600 /etc/ppp/chap-secrets /etc/ipsec.d/passwd 2>/dev/null
+
+# Users DB
+if [[ -f "$USERS_FILE" ]]; then
+    tmpfile="${USERS_FILE}.tmp.$$"
+    jq --arg u "$VPN_USER" --arg e "$exp" --arg c "$(date +%Y-%m-%d)" \
+       '.l2tp += [{"user":$u,"exp":$e,"created":$c}]' "$USERS_FILE" > "$tmpfile"
+    mv "$tmpfile" "$USERS_FILE" 2>/dev/null
+    chmod 600 "$USERS_FILE" 2>/dev/null
 fi
-clear
-echo "$TEKS"
 
+clear
+cat << EOF
+=========================
+[ L2TP/IPsec Account ]
+=========================
+Username   : ${VPN_USER}
+Password   : ${VPN_PASS}
+PSK        : ${PSK}
+Expired    : ${exp}
+=========================
+Server IP  : ${PUBLIC_IP}
+=========================
+EOF
 echo ""
 read -n 1 -s -r -p "Press any key to go back..."
-menu
+lmenu

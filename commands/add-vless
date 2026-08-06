@@ -3,73 +3,69 @@
 #  KUROVPN -- VPN Auto-Installer & Manager
 #  https://github.com/imagi-tech/kurovpn
 #
-domain=$(cat /etc/xray/domain 2>/dev/null)
+#  Add VLess account (WS + gRPC + HTTPUpgrade)
+
+source /usr/lib/kurovpn/common.sh 2>/dev/null || true
+source /usr/lib/kurovpn/xray-clients.sh 2>/dev/null || true
+
+XRAY_CONFIG="/etc/xray/config.json"
+USERS_FILE="/etc/kurovpn/users.json"
+domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
+
 clear
-echo -e "\n===================\n[  Create Vless Account  ]\n===================\n"
-user=""
+echo -e "\n===================\n[ Create VLess Account ]\n===================\n"
+
 while true; do
-    read -p "Username: " user
-    if [[ ! "$user" =~ ^[a-zA-Z0-9_]+$ ]]; then
-        echo "Error: Invalid username. Use alphanumeric characters only."
-        continue
-    fi
-    if grep -qw "$user" /etc/xray/config.json 2>/dev/null; then
-        echo "Error: Username '$user' already exists!"
-        continue
-    fi
+    read -p "Username  : " user
+    [[ -z "$user" ]] && continue
+    valid_username "$user" || { echo "Error: alphanumeric and underscore only."; continue; }
+    user_exists "vless" "$user" && { echo "Error: user '$user' already exists."; continue; }
     break
 done
-until [[ $masaaktif =~ ^[0-9]+$ ]]; do
-    read -p "Active Time (days): " masaaktif
-done
-exp=`date -d "$masaaktif days" +"%y-%m-%d"`
-uuid=$(xray uuid)
-sed -i '/#vless$/a\### '"$user $exp"'\
-},{"id": "'""$uuid""'","email": "'""$user""'"' /etc/xray/config.json
-systemctl daemon-reload ; systemctl restart xray
-vlesslink1="vless://${uuid}@${domain}:443?path=/vlessws&security=tls&encryption=none&host=${domain}&type=ws&sni=${domain}#${user}"
-vlesslink2="vless://${uuid}@${domain}:80?path=/vlessws&security=none&encryption=none&host==${domain}&type=ws#${user}"
-vlesslink3="vless://$uuid@$domain:443?mode=gun&security=none&encryption=none&authority=$domain&type=grpc&serviceName=vless-grpc&sni=$domain#${user}"
-vlesslink4="vless://${uuid}@${domain}:443?path=/rere-cantik&security=tls&encryption=none&host=${domain}&type=httpupgrade&sni=${domain}#${user}"
-vlesslink5="vless://${uuid}@${domain}:80?path=/rere-cantik&security=none&encryption=none&host=${domain}&type=httpupgrade#${user}"
-clear
-TEKS="
-=====================
-[ Vless Account Info ]
-=====================
 
-Hostname: $domain
-WildCard: bug.com.${domain}
-Remark  : $user
-UUID    : $uuid
-Expired : $exp
-=====================
-Port TLS : 443, 53, 2095
-Port HTTP: 80, 2082
-Path WS  : /vless | /vlessws
-Path HTTP: /rere  | /rere-cantik
-Serv Name: vless-grpc
-=====================
-WS TLS   : $vlesslink1
-=====================
-WS HTTP : $vlesslink2
-=====================
-HTTP TLS : $vlesslink4
-=====================
-HTTP NTLS: $vlesslink5
-=====================
-gRPC     : $vlesslink3
-=====================
-"
+while true; do
+    read -p "Duration (days): " days
+    [[ "$days" =~ ^[0-9]+$ ]] && [[ "$days" -gt 0 ]] && break
+    echo "Error: enter a positive number."
+done
+
+exp=$(date -d "$days days" +%Y-%m-%d)
+uuid=$(gen_uuid)
+client_json=$(make_vless_client "$uuid" "$user")
+
+xray_add_client "vless" "$client_json" || { echo "Error: failed to update Xray config."; exit 1; }
+users_add "vless" "$user" "$exp" "\"uuid\":\"$uuid\""
+
+link_ws="vless://${uuid}@${domain}:443?path=/vless&security=tls&encryption=none&type=ws&host=${domain}#${user}"
+link_grpc="vless://${uuid}@${domain}:443?path=vless-grpc&security=tls&encryption=none&type=grpc&serviceName=vless-grpc&host=${domain}#${user}"
+link_http="vless://${uuid}@${domain}:80?path=/rere&security=none&encryption=none&type=httpupgrade&host=${domain}#${user}"
+
+clear
+cat << EOF
+=========================
+[ Xray VLess Account ]
+=========================
+Remarks    : ${user}
+Host/SNI   : ${domain}
+UUID       : ${uuid}
+Expired    : ${exp}
+=========================
+Port       : 443, 53, 2095
+Network    : WS, gRPC, HTTPUpgrade
+=========================
+WS        : ${link_ws}
+gRPC      : ${link_grpc}
+HTTPUpgr  : ${link_http}
+=========================
+EOF
+
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
 KEY=$(cat /etc/funny/.keybot 2>/dev/null)
-TIME="10"
-URL="https://api.telegram.org/bot$KEY/sendMessage"
 if [[ -n "$KEY" && -n "$CHATID" ]]; then
-    curl -s --max-time $TIME -d "chat_id=$CHATID&disable_web_page_preview=1&text=$TEKS&parse_mode=html" $URL >/dev/null
+    curl -s --max-time 10 -d "chat_id=$CHATID&text=VLess+$user+created+exp+$exp&parse_mode=html" \
+        "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
 fi
-clear
-echo "$TEKS"
+
 echo ""
 read -n 1 -s -r -p "Press any key to go back..."
-menu
+menu-xray
