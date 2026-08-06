@@ -65,5 +65,4 @@ Server IP  : ${PUBLIC_IP}
 =========================
 EOF
 echo ""
-read -n 1 -s -r -p "Press any key to go back..."
-lmenu
+

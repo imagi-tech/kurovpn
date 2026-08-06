@@ -67,5 +67,4 @@ if [[ -n "$KEY" && -n "$CHATID" ]]; then
 fi
 
 echo ""
-read -n 1 -s -r -p "Press any key to go back..."
-menu-xray
+

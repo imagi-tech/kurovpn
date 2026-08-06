@@ -5,6 +5,8 @@
 #
 #  Telegram Bot Setup
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 clear
 echo "========================="
 echo "   Telegram Bot Setup"
@@ -17,15 +19,79 @@ read -p "Bot Token    : " TOKEN
 read -p "Admin Chat ID: " CHATID
 [[ -z "$CHATID" ]] && { echo "Chat ID required."; exit 0; }
 
+# Save credentials
 mkdir -p /etc/funny
 echo "$TOKEN" > /etc/funny/.keybot
 echo "$CHATID" > /etc/funny/.chatid
 chmod 600 /etc/funny/.keybot /etc/funny/.chatid
 
 echo ""
-echo "Bot token and chat ID saved."
-echo "To deploy the bot, copy Plugin/bot.py to /opt/kurovpn/bot.py"
-echo "and enable the kurovpn-bot service."
+echo "Bot credentials saved."
+echo ""
+
+# Deploy bot.py — try multiple locations
+BOT_DEST="/opt/kurovpn/bot.py"
+found=""
+for src in \
+    "$SCRIPT_DIR/../Plugin/bot.py" \
+    "/usr/lib/kurovpn/../Plugin/bot.py" \
+    "/root/kurovpn/Plugin/bot.py" \
+    "$(pwd)/Plugin/bot.py"; do
+    if [[ -f "$src" ]]; then
+        mkdir -p "$(dirname "$BOT_DEST")"
+        cp "$src" "$BOT_DEST"
+        chmod +x "$BOT_DEST"
+        found="$src"
+        break
+    fi
+done
+
+if [[ -z "$found" ]]; then
+    echo "WARNING: Could not find Plugin/bot.py to deploy."
+    echo "Please copy it manually to $BOT_DEST"
+else
+    echo "Deployed bot.py from $found to $BOT_DEST"
+fi
+
+# Create systemd service
+cat > /etc/systemd/system/kurovpn-bot.service << 'UNIT'
+[Unit]
+Description=KUROVPN Telegram Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/kurovpn
+ExecStart=/usr/bin/python3 /opt/kurovpn/bot.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+
+echo ""
+read -p "Enable and start bot on boot? [y/N]: " enable
+if [[ "$enable" == "y" || "$enable" == "Y" ]]; then
+    systemctl enable kurovpn-bot
+    systemctl restart kurovpn-bot
+    sleep 2
+    if systemctl is-active --quiet kurovpn-bot; then
+        echo "Bot is running."
+    else
+        echo "Bot failed to start. Check: journalctl -u kurovpn-bot"
+    fi
+else
+    echo "Bot files installed but not started."
+    echo "Start manually: systemctl start kurovpn-bot"
+fi
+
 echo ""
 read -n1 -s -r -p "Press any key..."
 menu

@@ -124,3 +124,26 @@ make_vmess_client() { echo "{\"id\":\"$1\",\"alterId\":0,\"email\":\"$2\"}"; }
 make_vless_client() { echo "{\"id\":\"$1\",\"email\":\"$2\"}"; }
 make_trojan_client() { echo "{\"password\":\"$1\",\"email\":\"$2\"}"; }
 make_ss_client() { echo "{\"password\":\"$1\",\"method\":\"aes-128-gcm\",\"email\":\"$2\"}"; }
+
+# ── User database helpers ───────────────────────────────
+users_add() {
+    local proto="$1" user="$2" exp="$3" extra="$4"
+    local today=$(date +%Y-%m-%d)
+    local entry='{"user":"'"$user"'","exp":"'"$exp"'","created":"'"$today"'"'
+    [[ -n "$extra" ]] && entry="$entry,$extra"
+    entry="$entry}"
+    local tmpfile="${USERS_FILE}.tmp.$$"
+    jq --argjson entry "$entry" --arg proto "$proto" \
+        '.[$proto] += [$entry]' "$USERS_FILE" > "$tmpfile"
+    mv "$tmpfile" "$USERS_FILE"
+    chmod 600 "$USERS_FILE"
+}
+
+users_del() {
+    local proto="$1" user="$2"
+    local tmpfile="${USERS_FILE}.tmp.$$"
+    jq --arg proto "$proto" --arg user "$user" \
+        '.[$proto] |= map(select(.user != $user))' "$USERS_FILE" > "$tmpfile"
+    mv "$tmpfile" "$USERS_FILE"
+    chmod 600 "$USERS_FILE"
+}
