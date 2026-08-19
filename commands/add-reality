@@ -51,17 +51,22 @@ link="vless://${uuid}@${domain}:8443?encryption=none&flow=xtls-rprx-vision&secur
 
 clear
 ui_card_begin "VLESS-Reality Account"
-ui_kv "Remarks"    "${user}"
-ui_kv "Host/SNI"   "${domain}"
-ui_kv "UUID"       "${uuid}"
-ui_kv "Flow"       "xtls-rprx-vision"
-ui_kv "Security"   "reality"
-ui_kv "Port"       "8443"
-ui_kv "Public Key" "${pubkey}"
-ui_kv "Short ID"   "${shortid}"
-ui_kv "Expired"    "${exp}"
+ui_kv "Remarks"      "${user}"
+ui_kv "Host/SNI"     "${domain}"
+ui_kv "UUID"         "${uuid}"
+ui_kv "Flow"         "xtls-rprx-vision"
+ui_kv "Security"     "reality"
+ui_kv "Port"         "8443"
+ui_kv "Public Key"   "${pubkey}"
+ui_kv "Short ID"     "${shortid}"
+ui_kv "Expired"      "${exp}"
+ui_kv "Subscription" "https://${domain}/sub/${user}"
 ui_card_end
-echo -e "  ${link}\n"
+
+echo -e "  ${CYAN}Reality Link:${NC} ${link}\n"
+echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
+
+ui_qr "$link" "Scan VLESS-Reality QR Code"
 
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
 KEY=$(cat /etc/funny/.keybot 2>/dev/null)
@@ -70,8 +75,5 @@ if [[ -n "$KEY" && -n "$CHATID" ]]; then
         "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
 fi
 
-if [[ -t 0 ]]; then
-    read -n 1 -s -r -p "Press any key to continue..."
-fi
-echo ""
+ui_wait_key
 

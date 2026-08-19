@@ -43,17 +43,21 @@ ss_link="ss://$(echo -n "aes-128-gcm:${password}" | base64 -w 0)@${domain}:443?p
 
 clear
 ui_card_begin "Shadowsocks Account"
-ui_kv "Remarks"  "${user}"
-ui_kv "Host/SNI" "${domain}"
-ui_kv "Password" "${password}"
-ui_kv "Method"   "aes-128-gcm"
-ui_kv "Expired"  "${exp}"
-ui_kv "Network"  "WebSocket (TLS)"
-ui_kv "Path"     "/ssws"
-ui_kv "Port"     "443"
+ui_kv "Remarks"      "${user}"
+ui_kv "Host/SNI"     "${domain}"
+ui_kv "Password"     "${password}"
+ui_kv "Method"       "aes-128-gcm"
+ui_kv "Expired"      "${exp}"
+ui_kv "Network"      "WebSocket (TLS)"
+ui_kv "Path"         "/ssws"
+ui_kv "Port"         "443"
+ui_kv "Subscription" "https://${domain}/sub/${user}"
 ui_card_end
-echo -e "  ss://${b64}@${domain}:443?path=%2Fssws&security=tls#${user}"
-echo ""
+
+echo -e "  ${CYAN}SS Link:${NC} ${ss_link}\n"
+echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
+
+ui_qr "$ss_link" "Scan Shadowsocks QR Code"
 
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
 KEY=$(cat /etc/funny/.keybot 2>/dev/null)
@@ -62,8 +66,5 @@ if [[ -n "$KEY" && -n "$CHATID" ]]; then
         "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
 fi
 
-if [[ -t 0 ]]; then
-    read -n 1 -s -r -p "Press any key to continue..."
-fi
-echo ""
+ui_wait_key
 

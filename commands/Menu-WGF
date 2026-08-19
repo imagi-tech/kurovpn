@@ -70,9 +70,10 @@ EOF
 
         systemctl restart wg-quick@wg0 2>/dev/null
         clear
-        ui_card_begin "WireGuard Client"
+        ui_card_begin "WireGuard Client: ${CLIENT_NAME}"
         cat /etc/wireguard/clients/${CLIENT_NAME}.conf
         ui_card_end
+        ui_qr "$(cat /etc/wireguard/clients/${CLIENT_NAME}.conf 2>/dev/null)" "WireGuard QR Code"
         read -n1 -s -r -p "  Press any key..."
         ;;
     2)
@@ -93,7 +94,15 @@ EOF
         ;;
     4)
         read -p "  Client name: " name
-        [[ -f /etc/wireguard/clients/${name}.conf ]] && { clear; ui_card_begin "WireGuard Config"; cat /etc/wireguard/clients/${name}.conf; ui_card_end; } || echo "  Not found."
+        if [[ -f "/etc/wireguard/clients/${name}.conf" ]]; then
+            clear
+            ui_card_begin "WireGuard Config: ${name}"
+            cat "/etc/wireguard/clients/${name}.conf"
+            ui_card_end
+            ui_qr "$(cat "/etc/wireguard/clients/${name}.conf" 2>/dev/null)" "WireGuard QR Code"
+        else
+            echo "  Not found."
+        fi
         read -n1 -s -r -p "  Press any key..."
         ;;
     X|x) exit 0 ;;

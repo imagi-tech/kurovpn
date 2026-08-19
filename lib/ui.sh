@@ -132,18 +132,53 @@ ui_running() {
     fi
 }
 
-# ui_blank  — empty card row
-_blank() { echo -e "${CYAN}│${NC}$(printf "%$((UI_W))s")${CYAN}│${NC}"; }
+# ui_qr "URI_or_TEXT" ["Title"]
+ui_qr() {
+    local text="$1" title="${2:-Scan QR Code}"
+    if command -v qrencode &>/dev/null && [[ -n "$text" ]]; then
+        echo -e "\n  ${YELLOW}[ $title ]${NC}\n"
+        qrencode -t ANSIUTF8 -o - "$text" 2>/dev/null | sed 's/^/  /' || true
+        echo ""
+    elif [[ -n "$text" ]]; then
+        echo -e "\n  ${BLUE}[ QR Code: install 'qrencode' to view terminal QR ]${NC}"
+    fi
+}
 
-# ui_menu  — compact sub-menu (for card-like sections inside complex screens)
-# usage: ui_menu "1" "Label 1" "2" "Label 2" "X" "Back"
-ui_menu() {
-    ui_card_begin "Menu"
-    local i=1
-    while (( i <= $# )); do
-        local num="${!i}"; ((i++))
-        local lbl="${!i}"; ((i++))
-        printf "  ${GREEN}%2s)${NC}  %-30s\n" "$num" "$lbl"
-    done
-    ui_card_end
+# ui_pill "service_name" ["display_label"]
+ui_pill() {
+    local svc="$1" label="${2:-$svc}"
+    if systemctl is-active --quiet "$svc" 2>/dev/null; then
+        echo -en "${GREEN}● ${label}${NC}"
+    else
+        echo -en "${RED}○ ${label}${NC}"
+    fi
+}
+
+# ui_gauge percentage [bar_width] [details_text]
+ui_gauge() {
+    local pct="${1%.*}" width="${2:-15}" detail="${3:-}"
+    (( pct < 0 )) && pct=0
+    (( pct > 100 )) && pct=100
+    
+    local filled=$(( (pct * width) / 100 ))
+    local empty=$(( width - filled ))
+    
+    local color="$GREEN"
+    (( pct >= 70 )) && color="$YELLOW"
+    (( pct >= 90 )) && color="$RED"
+    
+    local bar=""
+    for ((i=0; i<filled; i++)); do bar+="█"; done
+    for ((i=0; i<empty; i++)); do bar+="░"; done
+    
+    echo -e "${color}[${bar}]${NC} ${WHITE}${pct}%${NC} ${detail}"
+}
+
+# ui_wait_key
+ui_wait_key() {
+    if [[ -t 0 ]]; then
+        echo ""
+        read -n 1 -s -r -p "  Press any key to continue..."
+        echo ""
+    fi
 }

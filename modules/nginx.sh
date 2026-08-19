@@ -123,6 +123,16 @@ http {
         ssl_protocols TLSv1.2 TLSv1.3;
         root /var/www/html;
 
+        # Client Subscriptions
+        location ^~ /sub/ {
+            alias /var/www/html/sub/;
+            default_type text/plain;
+            add_header Access-Control-Allow-Origin * always;
+            add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
+            add_header Profile-Update-Interval 24 always;
+            add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        }
+
         # SSH WebSocket (Dropbear on port 109)
         location / {
             if (\$http_upgrade != "Upgrade") { rewrite /(.*) / break; }

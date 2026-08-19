@@ -86,7 +86,7 @@ install_commands() {
         "Menu-WGF" "nmenu" "lmenu" "bmenu" "botmenu" "dm-menu"
         "addssh" "add-l2tp" "add-ssws" "add-trojan" "add-vless" "add-vmess"
         "add-reality" "add-ss2022" "add-hysteria2"
-        "backup" "xp" "kurovpn-verify"
+        "backup" "xp" "bbr" "sub" "kurovpn-verify"
     )
 
     for cmd in "${cmd_list[@]}"; do
@@ -115,6 +115,22 @@ install_commands() {
         cp "$SCRIPT_DIR/lib/hysteria-clients.sh" "/usr/lib/kurovpn/hysteria-clients.sh"
         chmod 644 "/usr/lib/kurovpn/hysteria-clients.sh"
     fi
+
+    # Install subscription library
+    if [[ -f "$SCRIPT_DIR/lib/subscription.sh" ]]; then
+        cp "$SCRIPT_DIR/lib/subscription.sh" "/usr/lib/kurovpn/subscription.sh"
+        chmod 644 "/usr/lib/kurovpn/subscription.sh"
+    fi
+
+    # Install BBR module library
+    if [[ -f "$SCRIPT_DIR/modules/bbr.sh" ]]; then
+        cp "$SCRIPT_DIR/modules/bbr.sh" "/usr/lib/kurovpn/bbr.sh"
+        chmod 644 "/usr/lib/kurovpn/bbr.sh"
+    fi
+
+    # Initialize subscriptions directory
+    mkdir -p /var/www/html/sub
+    chmod 755 /var/www/html/sub 2>/dev/null || true
 
     # Deploy Telegram bot
     if [[ -f "$SCRIPT_DIR/Plugin/bot.py" ]]; then

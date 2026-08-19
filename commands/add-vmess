@@ -60,20 +60,25 @@ rm -f /tmp/vmess_*.json
 
 clear
 ui_card_begin "Xray VMess Account"
-ui_kv "Remarks"     "${user}"
-ui_kv "Host/SNI"    "${domain}"
-ui_kv "UUID"        "${uuid}"
-ui_kv "Expired"     "${exp}"
-ui_kv "Port TLS"    "443, 53, 2095"
-ui_kv "Port HTTP"   "80, 2082"
-ui_kv "Network"     "WS, gRPC, HTTPUpgrade"
-ui_kv "Path WS"     "/vmess"
-ui_kv "ServiceName" "vmess-grpc"
+ui_kv "Remarks"      "${user}"
+ui_kv "Host/SNI"     "${domain}"
+ui_kv "UUID"         "${uuid}"
+ui_kv "Expired"      "${exp}"
+ui_kv "Port TLS"     "443, 53, 2095"
+ui_kv "Port HTTP"    "80, 2082"
+ui_kv "Network"      "WS, gRPC, HTTPUpgrade"
+ui_kv "Path WS"      "/vmess"
+ui_kv "ServiceName"  "vmess-grpc"
+ui_kv "Subscription" "https://${domain}/sub/${user}"
 ui_card_end
-echo -e "  TLS  : ${link1}"
-echo -e "  HTTP : ${link2}"
-echo -e "  gRPC : ${link3}"
+
+echo -e "  ${CYAN}TLS${NC}  : ${link1}"
+echo -e "  ${CYAN}HTTP${NC} : ${link2}"
+echo -e "  ${CYAN}gRPC${NC} : ${link3}"
 echo ""
+echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
+
+ui_qr "$link1" "Scan VMess (TLS) QR Code"
 
 # Telegram notification
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
@@ -83,8 +88,5 @@ if [[ -n "$KEY" && -n "$CHATID" ]]; then
         "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
 fi
 
-if [[ -t 0 ]]; then
-    read -n 1 -s -r -p "Press any key to continue..."
-fi
-echo ""
+ui_wait_key
 

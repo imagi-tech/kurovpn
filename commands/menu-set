@@ -21,7 +21,8 @@ ui_item 7  "Change Timezone"
 ui_item 8  "Backup & Restore"
 ui_item 9  "Domain / Cert Manager"
 ui_item 10 "Bandwidth Monitor (vnstat)"
-ui_item 11 "Uninstall KUROVPN"
+ui_item 11 "TCP BBR Speed Booster"
+ui_item 12 "Uninstall KUROVPN"
 
 echo ""
 ui_footer
@@ -58,7 +59,8 @@ case "$opt" in
     8) bmenu ;;
     9) dm-menu ;;
     10) vnstat 2>/dev/null || echo "vnstat not installed"; echo ""; read -n1 -s -r -p "  Press any key..." ;;
-    11) /usr/bin/uninstall; exit 0 ;;
+    11) bbr ;;
+    12) /usr/bin/uninstall; exit 0 ;;
     X|x) clear; exit 0 ;;
 esac
 done

@@ -1,0 +1,61 @@
+#!/bin/bash
+#
+#  KUROVPN -- VPN Auto-Installer & Manager
+#  https://github.com/imagi-tech/kurovpn
+#
+#  commands/bbr — TCP BBR Booster Menu
+
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || source /home/azureuser/vpn_script/lib/ui.sh 2>/dev/null || true
+source /usr/lib/kurovpn/bbr.sh 2>/dev/null || source /home/azureuser/vpn_script/modules/bbr.sh 2>/dev/null || true
+
+while true; do
+clear
+ui_header "TCP BBR Speed Booster" "Main › System › BBR"
+
+ui_card_begin "Current Status"
+status_msg=$(bbr_status_text 2>/dev/null || echo "Unknown")
+if bbr_is_active 2>/dev/null; then
+    ui_kv "BBR Engine" "${GREEN}Active (Optimized)${NC}"
+else
+    ui_kv "BBR Engine" "${YELLOW}Inactive (Default)${NC}"
+fi
+ui_kv "Details" "$status_msg"
+ui_kv "Kernel" "$(uname -r)"
+ui_card_end
+
+ui_item 1 "Enable / Optimize TCP BBR + FQ"
+ui_item 2 "Disable / Revert to Default"
+ui_item 3 "Run Speedtest (CLI)"
+echo ""
+ui_footer
+read -p "  Select [1-3]: " opt
+
+case "$opt" in
+    1)
+        echo ""
+        bbr_enable
+        ui_wait_key
+        ;;
+    2)
+        echo ""
+        bbr_disable
+        ui_wait_key
+        ;;
+    3)
+        echo ""
+        if command -v speedtest-cli &>/dev/null; then
+            speedtest-cli --simple
+        elif command -v speedtest &>/dev/null; then
+            speedtest
+        else
+            echo "  Installing speedtest-cli..."
+            apt-get install -y -qq speedtest-cli 2>/dev/null || true
+            speedtest-cli --simple 2>/dev/null || echo "  Speedtest not available."
+        fi
+        ui_wait_key
+        ;;
+    X|x)
+        exit 0
+        ;;
+esac
+done

@@ -41,6 +41,8 @@ install_deps() {
         build-essential
         python3 python3-pip
         binutils
+        qrencode
+        vnstat
     )
 
     # Install ruby's lolcat gem

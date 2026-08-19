@@ -39,13 +39,18 @@ link="hysteria2://${user}:${password}@${domain}:443?insecure=0&sni=${domain}#${u
 
 clear
 ui_card_begin "Hysteria2 Account"
-ui_kv "Username"   "${user}"
-ui_kv "Password"   "${password}"
-ui_kv "Host/SNI"   "${domain}"
-ui_kv "Port"       "443 (UDP/QUIC)"
-ui_kv "Expired"    "${exp}"
+ui_kv "Username"     "${user}"
+ui_kv "Password"     "${password}"
+ui_kv "Host/SNI"     "${domain}"
+ui_kv "Port"         "443 (UDP/QUIC)"
+ui_kv "Expired"      "${exp}"
+ui_kv "Subscription" "https://${domain}/sub/${user}"
 ui_card_end
-echo -e "  ${link}\n"
+
+echo -e "  ${CYAN}Hysteria2 Link:${NC} ${link}\n"
+echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
+
+ui_qr "$link" "Scan Hysteria2 QR Code"
 
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
 KEY=$(cat /etc/funny/.keybot 2>/dev/null)
@@ -54,8 +59,5 @@ if [[ -n "$KEY" && -n "$CHATID" ]]; then
         "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
 fi
 
-if [[ -t 0 ]]; then
-    read -n 1 -s -r -p "Press any key to continue..."
-fi
-echo ""
+ui_wait_key
 

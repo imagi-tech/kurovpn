@@ -75,8 +75,12 @@ echo -e "${YELLOW}[ Management ]${NC}"
 check_warn "menu command"   'test -x /usr/bin/menu'
 check_warn "xp command"     'test -x /usr/bin/xp'
 check_warn "backup command" 'test -x /usr/bin/backup'
-check "cron installed"        'test -f /etc/cron.d/kurovpn'
-check_warn "uninstall command" 'test -x /usr/bin/uninstall'
+check_warn "bbr command"    'test -x /usr/bin/bbr'
+check_warn "sub command"    'test -x /usr/bin/sub'
+check_warn "qrencode CLI"   'command -v qrencode &>/dev/null'
+check_warn "sub endpoint"   'test -d /var/www/html/sub'
+check "cron installed"      'test -f /etc/cron.d/kurovpn'
+check_warn "uninstall cmd"  'test -x /usr/bin/uninstall'
 echo ""
 
 echo -e "${CYAN}══════════════════════════════════════════════${NC}"

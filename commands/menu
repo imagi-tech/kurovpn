@@ -5,51 +5,107 @@
 #
 #  Main dashboard menu
 
-source /usr/lib/kurovpn/ui.sh
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || source /home/azureuser/vpn_script/lib/ui.sh 2>/dev/null || true
+source /usr/lib/kurovpn/bbr.sh 2>/dev/null || source /home/azureuser/vpn_script/modules/bbr.sh 2>/dev/null || true
 
 domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
-MYIP=$(curl -s ipinfo.io/ip 2>/dev/null || echo "unknown")
+MYIP=$(curl -s --connect-timeout 2 ipinfo.io/ip 2>/dev/null || curl -s --connect-timeout 2 ifconfig.me || echo "unknown")
+USERS_FILE="/etc/kurovpn/users.json"
+
+_get_total_users() {
+    if [[ -f "$USERS_FILE" ]]; then
+        jq '[to_entries[].value[]?] | length' "$USERS_FILE" 2>/dev/null || echo 0
+    else
+        echo 0
+    fi
+}
 
 while true; do
 clear
-ui_header "Main Menu" "Dashboard"
+ui_header "Main Dashboard" "KUROVPN › Core"
 
-# ── Server info ──────────────────────────────
-ui_kv "Domain" "$domain"
-ui_kv "IP"     "$MYIP"
+# ── System Metrics ───────────────────────────
+uptime_str=$(uptime -p 2>/dev/null | sed 's/up //' || uptime | awk '{print $3,$4}')
+cpu_cores=$(nproc 2>/dev/null || echo 1)
+cpu_usage=$(top -bn1 2>/dev/null | grep 'Cpu(s)' | awk '{print $2}' | cut -d. -f1 || echo 0)
+[[ -z "$cpu_usage" ]] && cpu_usage=0
+
+# RAM Metrics
+ram_total_mb=$(free -m 2>/dev/null | awk '/Mem:/ {print $2}')
+ram_used_mb=$(free -m 2>/dev/null | awk '/Mem:/ {print $3}')
+ram_pct=0
+if [[ -n "$ram_total_mb" && "$ram_total_mb" -gt 0 ]]; then
+    ram_pct=$(( (ram_used_mb * 100) / ram_total_mb ))
+fi
+
+# Disk Metrics
+disk_pct=$(df -h / 2>/dev/null | awk 'NR==2 {print $5}' | tr -d '%')
+disk_used=$(df -h / 2>/dev/null | awk 'NR==2 {print $3}')
+disk_total=$(df -h / 2>/dev/null | awk 'NR==2 {print $2}')
+[[ -z "$disk_pct" ]] && disk_pct=0
+
+echo -e "  ${WHITE}Server:${NC} ${CYAN}${domain}${NC} (${MYIP})"
+echo -e "  ${WHITE}Uptime:${NC} ${uptime_str}  ·  ${WHITE}OS:${NC} $(lsb_release -sd 2>/dev/null || cat /etc/os-release | head -1 | cut -d= -f2 | tr -d '\"')"
 echo ""
 
-# ── Service status ───────────────────────────
-ui_section "Services"
-for svc in xray nginx dropbear edu "wg-quick@wg0" xl2tpd ipsec pptpd badvpn hysteria; do
-    ui_running "$svc"
-done
-
+echo -e "  ${WHITE}CPU:${NC}  $(ui_gauge "$cpu_usage" 12 "(${cpu_cores} Core)")"
+echo -e "  ${WHITE}RAM:${NC}  $(ui_gauge "$ram_pct" 12 "(${ram_used_mb}MB / ${ram_total_mb}MB)")"
+echo -e "  ${WHITE}Disk:${NC} $(ui_gauge "$disk_pct" 12 "(${disk_used} / ${disk_total})")"
 echo ""
-# ── Menu options ─────────────────────────────
-ui_card_begin "Quick Access"
-_col1="1) SSH Menu         5) WireGuard"
-_col2="2) Xray Manager     6) System Menu"
-_col3="3) L2TP/IPsec       7) Bot & Backup"
-_col4="4) NoobZVPNS        8) Domain & Cert"
-_card_row "${GREEN}1)${NC} SSH Menu       ${GREEN}5)${NC} WireGuard"
-_card_row "${GREEN}2)${NC} Xray Manager   ${GREEN}6)${NC} System Menu"
-_card_row "${GREEN}3)${NC} L2TP/IPsec       ${GREEN}7)${NC} Bot & Backup"
-_card_row "${GREEN}4)${NC} NoobZVPNS          ${GREEN}8)${NC} Domain & Cert"
+
+# ── Services Status Matrix ───────────────────
+ui_section "Active Services"
+echo -e "  $(ui_pill xray "Xray")   $(ui_pill nginx "Nginx")   $(ui_pill hysteria "Hysteria2")   $(ui_pill "wg-quick@wg0" "WireGuard")"
+echo -e "  $(ui_pill ssh "SSH")    $(ui_pill dropbear "Dropbear")   $(ui_pill xl2tpd "L2TP")   $(ui_pill "kurovpn-bot" "Bot")"
+echo ""
+
+# ── Account Summary ──────────────────────────
+total_u=$(_get_total_users)
+echo -e "  ${YELLOW}Registered Clients:${NC} ${WHITE}${total_u}${NC} total across protocols"
+echo ""
+
+# ── Menu Options ─────────────────────────────
+ui_card_begin "Protocol Management"
+_card_row "${GREEN} 1)${NC} SSH & Dropbear         ${GREEN} 6)${NC} Client Subscriptions"
+_card_row "${GREEN} 2)${NC} Xray Core (VMess/VLess) ${GREEN} 7)${NC} TCP BBR Speed Booster"
+_card_row "${GREEN} 3)${NC} Xray Reality & SS-2022  ${GREEN} 8)${NC} System Settings & Logs"
+_card_row "${GREEN} 4)${NC} Hysteria 2 (QUIC)       ${GREEN} 9)${NC} Telegram Bot & Backup"
+_card_row "${GREEN} 5)${NC} WireGuard & L2TP        ${GREEN}10)${NC} Domain & SSL Cert"
 ui_card_end
 
-ui_footer
-read -p "  Select [1-8]: " opt
+echo -e "  ${GREEN}V)${NC} Run Full Diagnostics (Verify)   ${RED}X)${NC} Exit"
+echo ""
+read -p "  Select Option [1-10 / V / X]: " opt
 
 case "$opt" in
     1) menu-ssh ;;
     2) menu-xray ;;
-    3) lmenu ;;
-    4) nmenu ;;
+    3) menu-xray ;;
+    4) add-hysteria2 ;;
     5) Menu-WGF ;;
-    6) menu-set ;;
-    7) bmenu ;;
-    8) dm-menu ;;
+    6)
+        clear
+        ui_header "Subscriptions" "Main › Subscriptions"
+        read -p "  Enter username to view subscription link: " su
+        if [[ -n "$su" ]]; then
+            source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
+            sub_url_str=$(sub_url "$su")
+            echo ""
+            ui_kv "User" "$su"
+            ui_kv "Subscription" "$sub_url_str"
+            ui_qr "$sub_url_str" "Subscription QR Code"
+        fi
+        ui_wait_key
+        ;;
+    7) bbr ;;
+    8) menu-set ;;
+    9) bmenu ;;
+    10) dm-menu ;;
+    V|v)
+        clear
+        kurovpn-verify || /usr/bin/kurovpn-verify || true
+        ui_wait_key
+        ;;
     X|x) clear; exit 0 ;;
 esac
 done

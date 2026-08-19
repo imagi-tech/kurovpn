@@ -42,17 +42,22 @@ link_grpc="trojan://${password}@${domain}:443?path=trojan-grpc&security=tls&type
 
 clear
 ui_card_begin "Xray Trojan Account"
-ui_kv "Remarks"  "${user}"
-ui_kv "Host/SNI" "${domain}"
-ui_kv "Password" "${password}"
-ui_kv "Expired"  "${exp}"
-ui_kv "Port TLS" "443"
-ui_kv "Network"  "WS, gRPC"
-ui_kv "Path WS"  "/trojan-ws"
+ui_kv "Remarks"      "${user}"
+ui_kv "Host/SNI"     "${domain}"
+ui_kv "Password"     "${password}"
+ui_kv "Expired"      "${exp}"
+ui_kv "Port TLS"     "443"
+ui_kv "Network"      "WS, gRPC"
+ui_kv "Path WS"      "/trojan"
+ui_kv "Subscription" "https://${domain}/sub/${user}"
 ui_card_end
-echo -e "  TLS  : ${link}"
-echo -e "  gRPC : ${grpc_link}"
+
+echo -e "  ${CYAN}WS TLS${NC} : ${link_ws}"
+echo -e "  ${CYAN}gRPC${NC}   : ${link_grpc}"
 echo ""
+echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
+
+ui_qr "$link_ws" "Scan Trojan (WS TLS) QR Code"
 
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
 KEY=$(cat /etc/funny/.keybot 2>/dev/null)
@@ -61,8 +66,5 @@ if [[ -n "$KEY" && -n "$CHATID" ]]; then
         "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
 fi
 
-if [[ -t 0 ]]; then
-    read -n 1 -s -r -p "Press any key to continue..."
-fi
-echo ""
+ui_wait_key
 

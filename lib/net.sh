@@ -79,8 +79,8 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # Remove expired VPN accounts every 15 minutes
 0,15,30,45 * * * * root /usr/bin/xp >/dev/null 2>&1
 
-# Backup daily at midnight, 6am, noon, 6pm
-0 0,6,12,18 * * * root /usr/bin/backup >/dev/null 2>&1
+# Automated backup (Disabled by default - run manually or uncomment)
+# 0 0,6,12,18 * * * root /usr/bin/backup >/dev/null 2>&1
 EOF
 
     chmod 644 "$cronfile"

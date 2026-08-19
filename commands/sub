@@ -1,0 +1,39 @@
+#!/bin/bash
+#
+#  KUROVPN -- VPN Auto-Installer & Manager
+#  https://github.com/imagi-tech/kurovpn
+#
+#  commands/sub — Client Subscription Manager
+
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || source /home/azureuser/vpn_script/lib/ui.sh 2>/dev/null || true
+source /usr/lib/kurovpn/subscription.sh 2>/dev/null || source /home/azureuser/vpn_script/lib/subscription.sh 2>/dev/null || true
+
+clear
+ui_header "Client Subscriptions" "Main › Subscriptions"
+
+if [[ -n "$1" ]]; then
+    su="$1"
+else
+    read -p "  Enter Username: " su
+fi
+
+if [[ -z "$su" ]]; then
+    echo "  Username required."
+    exit 1
+fi
+
+sub_build_user "$su"
+s_url=$(sub_url "$su")
+
+ui_card_begin "Subscription Details: $su"
+ui_kv "User" "$su"
+ui_kv "Direct URL" "$s_url"
+ui_kv "Plaintext URL" "${s_url}.txt"
+ui_kv "Compatible Apps" "v2rayNG, Shadowrocket, Sing-box, Clash, NekoBox"
+ui_card_end
+
+echo -e "  ${GREEN}Subscription URL:${NC} ${s_url}\n"
+
+ui_qr "$s_url" "Scan Subscription in Client App"
+
+ui_wait_key

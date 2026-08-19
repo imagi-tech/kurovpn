@@ -78,6 +78,10 @@ users_add() {
         '.[$proto] += [$entry]' "$USERS_FILE" > "$tmpfile"
     mv "$tmpfile" "$USERS_FILE"
     chmod 600 "$USERS_FILE"
+
+    # Auto-generate subscription links
+    source /usr/lib/kurovpn/subscription.sh 2>/dev/null || source "$SCRIPT_DIR/lib/subscription.sh" 2>/dev/null || true
+    sub_build_user "$user" 2>/dev/null || true
 }
 
 # ── Remove a user entry ────────────────────────────────
@@ -88,6 +92,10 @@ users_del() {
         '.[$proto] |= map(select(.user != $user))' "$USERS_FILE" > "$tmpfile"
     mv "$tmpfile" "$USERS_FILE"
     chmod 600 "$USERS_FILE"
+
+    # Update or remove subscription links
+    source /usr/lib/kurovpn/subscription.sh 2>/dev/null || source "$SCRIPT_DIR/lib/subscription.sh" 2>/dev/null || true
+    sub_build_user "$user" 2>/dev/null || true
 }
 
 # ── List users for a protocol ──────────────────────────

@@ -42,14 +42,19 @@ link="ss://${encoded}@${domain}:10010#${user}"
 
 clear
 ui_card_begin "Shadowsocks-2022 Account"
-ui_kv "Remarks"    "${user}"
-ui_kv "Host"       "${domain}"
-ui_kv "Port"       "10010 (TCP+UDP)"
-ui_kv "Method"     "2022-blake3-aes-256-gcm"
-ui_kv "Password"   "${key}"
-ui_kv "Expired"    "${exp}"
+ui_kv "Remarks"      "${user}"
+ui_kv "Host"         "${domain}"
+ui_kv "Port"         "10010 (TCP+UDP)"
+ui_kv "Method"       "2022-blake3-aes-256-gcm"
+ui_kv "Password"     "${key}"
+ui_kv "Expired"      "${exp}"
+ui_kv "Subscription" "https://${domain}/sub/${user}"
 ui_card_end
-echo -e "  ${link}"
+
+echo -e "  ${CYAN}Shadowsocks Link:${NC} ${link}\n"
+echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
+
+ui_qr "$link" "Scan SS-2022 QR Code"
 
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
 KEY=$(cat /etc/funny/.keybot 2>/dev/null)
@@ -58,8 +63,5 @@ if [[ -n "$KEY" && -n "$CHATID" ]]; then
         "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
 fi
 
-if [[ -t 0 ]]; then
-    read -n 1 -s -r -p "Press any key to continue..."
-fi
-echo ""
+ui_wait_key
 
