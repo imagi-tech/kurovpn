@@ -127,6 +127,7 @@ generate_xray_config() {
       "port": 10004,
       "protocol": "shadowsocks",
       "settings": {
+        "method": "aes-128-gcm",
         "clients": [],
         "network": "tcp,udp"
       },
@@ -314,9 +315,8 @@ generate_xray_config() {
       "port": 10010,
       "protocol": "shadowsocks",
       "settings": {
-        "method": "2022-blake3-aes-256-gcm",
-        "password": "${server_psk}",
-        "users": [],
+        "method": "aes-128-gcm",
+        "clients": [],
         "network": "tcp,udp"
       },
       "sniffing": {

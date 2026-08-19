@@ -34,9 +34,14 @@ done
 exp=$(date -d "$days days" +%Y-%m-%d)
 password=$(openssl rand -base64 24 2>/dev/null | tr '+/' '-_' | tr -d '=\n')
 
+source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
+
 hy_add_user "$user" "$password" "$exp" || { echo "Error: failed to add Hysteria2 user."; exit 1; }
 
-link="hysteria2://${user}:${password}@${domain}:443?insecure=0&sni=${domain}#${user}"
+# Build subscription immediately
+sub_build_user "$user" 2>/dev/null || true
+
+link="hysteria2://${user}:${password}@${domain}:443?insecure=0&sni=${domain}#${user}-Hysteria2"
 
 clear
 ui_card_begin "Hysteria2 Account"
@@ -48,8 +53,12 @@ ui_kv "Expired"      "${exp}"
 ui_kv "Subscription" "https://${domain}/sub/${user}"
 ui_card_end
 
-echo -e "  ${CYAN}Hysteria2 Link:${NC} ${link}\n"
+echo -e "\n  ${YELLOW}─── Client Import Link (Copy-Paste to Happ/v2rayN) ───────────${NC}"
+echo "$link"
+echo -e "  ${YELLOW}─────────────────────────────────────────────────────────────${NC}\n"
+
 echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
+echo -e "  ${GREEN}Plaintext Link   :${NC} https://${domain}/sub/${user}.txt"
 
 ui_qr "$link" "Scan Hysteria2 QR Code"
 

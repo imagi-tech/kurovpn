@@ -52,6 +52,8 @@ if [[ -f "$USERS_FILE" ]]; then
        '.l2tp += [{"user":$u,"exp":$e,"created":$c}]' "$USERS_FILE" > "$tmpfile"
     mv "$tmpfile" "$USERS_FILE" 2>/dev/null
     chmod 600 "$USERS_FILE" 2>/dev/null
+    source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
+    sub_build_user "$VPN_USER" 2>/dev/null || true
 fi
 
 clear

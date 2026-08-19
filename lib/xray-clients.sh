@@ -20,7 +20,7 @@ USERS_FILE="/etc/kurovpn/users.json"
 VMESS_PORTS=(23456 31234 8001)
 VLESS_PORTS=(14016 24456 8003)
 TROJAN_PORTS=(25432 33456 8002)
-SS_PORTS=(10004)
+SS_PORTS=(10004 10010)
 REALITY_PORTS=(8443)
 SS2022_PORTS=(10010)
 
@@ -29,9 +29,8 @@ get_ports() {
         vmess)  echo "${VMESS_PORTS[@]}" ;;
         vless)  echo "${VLESS_PORTS[@]}" ;;
         trojan) echo "${TROJAN_PORTS[@]}" ;;
-        ss|shadowsocks) echo "${SS_PORTS[@]}" ;;
+        ss|shadowsocks|ss2022) echo "${SS_PORTS[@]}" ;;
         reality) echo "${REALITY_PORTS[@]}" ;;
-        ss2022) echo "${SS2022_PORTS[@]}" ;;
     esac
 }
 
@@ -131,10 +130,10 @@ make_vless_client() { echo "{\"id\":\"$1\",\"email\":\"$2\"}"; }
 make_trojan_client() { echo "{\"password\":\"$1\",\"email\":\"$2\"}"; }
 make_ss_client() { echo "{\"password\":\"$1\",\"method\":\"aes-128-gcm\",\"email\":\"$2\"}"; }
 make_reality_client() { echo "{\"id\":\"$1\",\"flow\":\"xtls-rprx-vision\",\"email\":\"$2\"}"; }
-make_ss2022_client() { echo "{\"email\":\"$2\",\"key\":\"$1\"}"; }
+make_ss2022_client() { echo "{\"password\":\"$1\",\"method\":\"aes-128-gcm\",\"email\":\"$2\"}"; }
 
 gen_ss2022_key() {
-    head -c 32 /dev/urandom 2>/dev/null | base64 -w0
+    head -c 16 /dev/urandom 2>/dev/null | base64 -w0 2>/dev/null || openssl rand -base64 16
 }
 
 xray_add_ss2022_client() {
@@ -143,7 +142,7 @@ xray_add_ss2022_client() {
     local tmpfile="${XRAY_CONFIG}.tmp.$$"
     cp "$XRAY_CONFIG" "$tmpfile"
     jq --argjson client "$client_json" \
-        "(.inbounds[] | select(.port == $port) | .settings.users) += [\$client]" \
+        "(.inbounds[] | select(.port == $port) | .settings.clients) += [\$client]" \
         "$tmpfile" > "${tmpfile}.2"
     mv "${tmpfile}.2" "$tmpfile"
     mv "$tmpfile" "$XRAY_CONFIG"
@@ -161,7 +160,7 @@ xray_del_ss2022_client() {
     local tmpfile="${XRAY_CONFIG}.tmp.$$"
     cp "$XRAY_CONFIG" "$tmpfile"
     jq --arg val "$value" \
-        "(.inbounds[] | select(.port == $port) | .settings.users) |= map(select(.key != \$val))" \
+        "(.inbounds[] | select(.port == $port) | .settings.clients) |= map(select(.password != \$val))" \
         "$tmpfile" > "${tmpfile}.2"
     mv "${tmpfile}.2" "$tmpfile"
     mv "$tmpfile" "$XRAY_CONFIG"

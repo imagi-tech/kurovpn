@@ -35,12 +35,17 @@ exp=$(date -d "$days days" +%Y-%m-%d)
 uuid=$(gen_uuid)
 client_json=$(make_vless_client "$uuid" "$user")
 
+source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
+
 xray_add_client "vless" "$client_json" || { echo "Error: failed to update Xray config."; exit 1; }
 users_add "vless" "$user" "$exp" "\"uuid\":\"$uuid\""
 
-link_ws="vless://${uuid}@${domain}:443?path=/vless&security=tls&encryption=none&type=ws&host=${domain}#${user}"
-link_grpc="vless://${uuid}@${domain}:443?path=vless-grpc&security=tls&encryption=none&type=grpc&serviceName=vless-grpc&host=${domain}#${user}"
-link_http="vless://${uuid}@${domain}:80?path=/rere&security=none&encryption=none&type=httpupgrade&host=${domain}#${user}"
+# Build subscription immediately
+sub_build_user "$user" 2>/dev/null || true
+
+link_ws="vless://${uuid}@${domain}:443?path=/vless&security=tls&encryption=none&type=ws&host=${domain}&sni=${domain}#${user}-WS-TLS"
+link_grpc="vless://${uuid}@${domain}:443?mode=gun&security=tls&encryption=none&type=grpc&serviceName=vless-grpc&host=${domain}&sni=${domain}#${user}-gRPC-TLS"
+link_http="vless://${uuid}@${domain}:80?path=/rere&security=none&encryption=none&type=httpupgrade&host=${domain}#${user}-WS-HTTP"
 
 clear
 ui_card_begin "Xray VLess Account"
@@ -56,11 +61,14 @@ ui_kv "ServiceName"  "vless-grpc"
 ui_kv "Subscription" "https://${domain}/sub/${user}"
 ui_card_end
 
-echo -e "  ${CYAN}WS TLS${NC}  : ${link_ws}"
-echo -e "  ${CYAN}gRPC${NC}    : ${link_grpc}"
-echo -e "  ${CYAN}HTTP NTLS${NC}: ${link_http}"
-echo ""
+echo -e "\n  ${YELLOW}─── Client Import Links (Copy all at once to Happ/v2rayN) ───${NC}"
+echo "$link_ws"
+echo "$link_grpc"
+echo "$link_http"
+echo -e "  ${YELLOW}─────────────────────────────────────────────────────────────${NC}\n"
+
 echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
+echo -e "  ${GREEN}Plaintext Link   :${NC} https://${domain}/sub/${user}.txt"
 
 ui_qr "$link_ws" "Scan VLess (WS TLS) QR Code"
 

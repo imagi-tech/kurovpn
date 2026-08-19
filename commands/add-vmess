@@ -37,21 +37,26 @@ exp=$(date -d "$days days" +%Y-%m-%d)
 uuid=$(gen_uuid)
 client_json=$(make_vmess_client "$uuid" "$user")
 
+source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
+
 # Add to Xray config
 xray_add_client "vmess" "$client_json" || { echo "Error: failed to update Xray config."; exit 1; }
 
 # Add to users DB
 users_add "vmess" "$user" "$exp" "\"uuid\":\"$uuid\""
 
-# Build client links
+# Build subscription immediately
+sub_build_user "$user" 2>/dev/null || true
+
+# Build client links with distinct profile remarks
 cat > /tmp/vmess_tls.json << LEOF
-{"v":"2","ps":"${user}","add":"${domain}","port":"443","id":"${uuid}","aid":"0","net":"ws","path":"/vmess","type":"none","host":"${domain}","tls":"tls"}
+{"v":"2","ps":"${user}-WS-TLS","add":"${domain}","port":"443","id":"${uuid}","aid":"0","net":"ws","path":"/vmess","type":"none","host":"${domain}","tls":"tls"}
 LEOF
 cat > /tmp/vmess_none.json << LEOF
-{"v":"2","ps":"${user}","add":"${domain}","port":"80","id":"${uuid}","aid":"0","net":"ws","path":"/vmess","type":"none","host":"${domain}","tls":"none"}
+{"v":"2","ps":"${user}-WS-HTTP","add":"${domain}","port":"80","id":"${uuid}","aid":"0","net":"ws","path":"/vmess","type":"none","host":"${domain}","tls":"none"}
 LEOF
 cat > /tmp/vmess_grpc.json << LEOF
-{"v":"2","ps":"${user}","add":"${domain}","port":"443","id":"${uuid}","aid":"0","net":"grpc","path":"vmess-grpc","type":"none","host":"${domain}","tls":"tls"}
+{"v":"2","ps":"${user}-gRPC-TLS","add":"${domain}","port":"443","id":"${uuid}","aid":"0","net":"grpc","path":"vmess-grpc","type":"none","host":"${domain}","tls":"tls"}
 LEOF
 
 link1="vmess://$(base64 -w 0 < /tmp/vmess_tls.json)"
@@ -73,11 +78,14 @@ ui_kv "ServiceName"  "vmess-grpc"
 ui_kv "Subscription" "https://${domain}/sub/${user}"
 ui_card_end
 
-echo -e "  ${CYAN}TLS${NC}  : ${link1}"
-echo -e "  ${CYAN}HTTP${NC} : ${link2}"
-echo -e "  ${CYAN}gRPC${NC} : ${link3}"
-echo ""
+echo -e "\n  ${YELLOW}─── Client Import Links (Copy all at once to Happ/v2rayN) ───${NC}"
+echo "$link1"
+echo "$link2"
+echo "$link3"
+echo -e "  ${YELLOW}─────────────────────────────────────────────────────────────${NC}\n"
+
 echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
+echo -e "  ${GREEN}Plaintext Link   :${NC} https://${domain}/sub/${user}.txt"
 
 ui_qr "$link1" "Scan VMess (TLS) QR Code"
 

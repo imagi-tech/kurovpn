@@ -35,32 +35,51 @@ exp=$(date -d "$days days" +%Y-%m-%d)
 key=$(gen_ss2022_key)
 client_json=$(make_ss2022_client "$key" "$user")
 
+source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
+
 xray_add_ss2022_client "$client_json" || { echo "Error: failed to update Xray config."; exit 1; }
+
+# Also add to Shadowsocks WS port 10004 for dual-transport compatibility
+ss_ws_client=$(make_ss_client "$key" "$user")
+xray_add_client "ss" "$ss_ws_client" 2>/dev/null || true
+
 users_add "ss2022" "$user" "$exp" "\"password\":\"$key\""
 
-encoded=$(echo -n "2022-blake3-aes-256-gcm:${key}" | base64 -w 0 2>/dev/null | tr '+/' '-_' | tr -d '=')
-link="ss://${encoded}@${domain}:10010#${user}"
+# Build subscription immediately
+sub_build_user "$user" 2>/dev/null || true
+
+encoded_direct=$(echo -n "aes-128-gcm:${key}" | base64 -w 0 2>/dev/null | tr -d '\n')
+link_direct="ss://${encoded_direct}@${domain}:10010#${user}-SS"
+
+encoded_ws=$(echo -n "aes-128-gcm:${key}" | base64 -w 0 2>/dev/null | tr -d '\n')
+link_ssws="ss://${encoded_ws}@${domain}:443?plugin=v2ray-plugin%3Btls%3Bhost%3D${domain}%3Bpath%3D%2Fssws#${user}-SS-WS"
 
 clear
-ui_card_begin "Shadowsocks-2022 Account"
+ui_card_begin "Shadowsocks Account"
 ui_kv "Remarks"      "${user}"
 ui_kv "Host"         "${domain}"
-ui_kv "Port"         "10010 (TCP+UDP)"
-ui_kv "Method"       "2022-blake3-aes-256-gcm"
+ui_kv "Port Direct"  "10010 (TCP+UDP)"
+ui_kv "Port WS TLS"  "443 (Path: /ssws)"
+ui_kv "Method"       "aes-128-gcm"
 ui_kv "Password"     "${key}"
 ui_kv "Expired"      "${exp}"
 ui_kv "Subscription" "https://${domain}/sub/${user}"
 ui_card_end
 
-echo -e "  ${CYAN}Shadowsocks Link:${NC} ${link}\n"
-echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
+echo -e "\n  ${YELLOW}─── Client Import Links (Copy all at once to Happ/v2rayN) ───${NC}"
+echo "$link_direct"
+echo "$link_ssws"
+echo -e "  ${YELLOW}─────────────────────────────────────────────────────────────${NC}\n"
 
-ui_qr "$link" "Scan SS-2022 QR Code"
+echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
+echo -e "  ${GREEN}Plaintext Link   :${NC} https://${domain}/sub/${user}.txt"
+
+ui_qr "$link_direct" "Scan Shadowsocks QR Code"
 
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
 KEY=$(cat /etc/funny/.keybot 2>/dev/null)
 if [[ -n "$KEY" && -n "$CHATID" ]]; then
-    curl -s --max-time 2 -d "chat_id=$CHATID&text=SS2022+$user+created+exp+$exp&parse_mode=html" \
+    curl -s --max-time 2 -d "chat_id=$CHATID&text=SS+$user+created+exp+$exp&parse_mode=html" \
         "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
 fi
 

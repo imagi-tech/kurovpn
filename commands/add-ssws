@@ -35,12 +35,17 @@ exp=$(date -d "$days days" +%Y-%m-%d)
 password=$(gen_uuid)
 client_json=$(make_ss_client "$password" "$user")
 
+source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
+
 xray_add_client "ss" "$client_json" || { echo "Error: failed to update Xray config."; exit 1; }
 users_add "shadowsocks" "$user" "$exp" "\"password\":\"$password\""
 
-# ss:// base64 link
-ss_raw="${password}:aes-128-gcm@${domain}:443"
-ss_link="ss://$(echo -n "aes-128-gcm:${password}" | base64 -w 0)@${domain}:443?path=/ssws&security=tls&type=ws&host=${domain}#${user}"
+# Build subscription immediately
+sub_build_user "$user" 2>/dev/null || true
+
+encoded_direct=$(echo -n "aes-128-gcm:${password}" | base64 -w 0 | tr -d '\n')
+link_direct="ss://${encoded_direct}@${domain}:10010#${user}-SS"
+link_ws="ss://${encoded_direct}@${domain}:443?plugin=v2ray-plugin%3Btls%3Bhost%3D${domain}%3Bpath%3D%2Fssws#${user}-SS-WS"
 
 clear
 ui_card_begin "Shadowsocks Account"
@@ -49,16 +54,20 @@ ui_kv "Host/SNI"     "${domain}"
 ui_kv "Password"     "${password}"
 ui_kv "Method"       "aes-128-gcm"
 ui_kv "Expired"      "${exp}"
-ui_kv "Network"      "WebSocket (TLS)"
+ui_kv "Network"      "Direct (10010) + WS TLS (443)"
 ui_kv "Path"         "/ssws"
-ui_kv "Port"         "443"
 ui_kv "Subscription" "https://${domain}/sub/${user}"
 ui_card_end
 
-echo -e "  ${CYAN}SS Link:${NC} ${ss_link}\n"
-echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
+echo -e "\n  ${YELLOW}─── Client Import Links (Copy all at once to Happ/v2rayN) ───${NC}"
+echo "$link_direct"
+echo "$link_ws"
+echo -e "  ${YELLOW}─────────────────────────────────────────────────────────────${NC}\n"
 
-ui_qr "$ss_link" "Scan Shadowsocks QR Code"
+echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
+echo -e "  ${GREEN}Plaintext Link   :${NC} https://${domain}/sub/${user}.txt"
+
+ui_qr "$link_direct" "Scan Shadowsocks QR Code"
 
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
 KEY=$(cat /etc/funny/.keybot 2>/dev/null)

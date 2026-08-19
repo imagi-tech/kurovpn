@@ -58,33 +58,39 @@ sub_build_user() {
     local reality_uuid
     reality_uuid=$(jq -r --arg u "$user" '.reality[]? | select(.user == $u) | .uuid' "$USERS_FILE" 2>/dev/null | head -1)
     if [[ -n "$reality_uuid" && "$reality_uuid" != "null" ]]; then
-        local pbk
+        local pbk shortid
         pbk=$(cat /etc/xray/reality-pub 2>/dev/null || echo "")
-        links+=("vless://${reality_uuid}@${domain}:8443?security=reality&encryption=none&pbk=${pbk}&headerType=none&type=tcp&flow=xtls-rprx-vision&sni=www.microsoft.com#${user}-VLess-REALITY")
+        read -r _ shortid < /etc/xray/reality-pub 2>/dev/null || shortid=""
+        links+=("vless://${reality_uuid}@${domain}:8443?security=reality&encryption=none&pbk=${pbk}&sid=${shortid}&headerType=none&type=tcp&flow=xtls-rprx-vision&sni=${domain}&fp=chrome#${user}-VLess-REALITY")
     fi
 
     # 4. Trojan
     local trojan_pass
     trojan_pass=$(jq -r --arg u "$user" '.trojan[]? | select(.user == $u) | .password // .user' "$USERS_FILE" 2>/dev/null | head -1)
     if [[ -n "$trojan_pass" && "$trojan_pass" != "null" ]]; then
-        links+=("trojan://${trojan_pass}@${domain}:443?path=%2ftrojan&security=tls&host=${domain}&type=ws&sni=${domain}#${user}-Trojan-WS")
+        links+=("trojan://${trojan_pass}@${domain}:443?path=%2Ft&security=tls&host=${domain}&type=ws&sni=${domain}#${user}-Trojan-WS")
         links+=("trojan://${trojan_pass}@${domain}:443?mode=gun&security=tls&authority=${domain}&type=grpc&serviceName=trojan-grpc&sni=${domain}#${user}-Trojan-gRPC")
     fi
 
-    # 5. Shadowsocks 2022
+    # 5. Shadowsocks
     local ss2022_pass
     ss2022_pass=$(jq -r --arg u "$user" '.ss2022[]? | select(.user == $u) | .password' "$USERS_FILE" 2>/dev/null | head -1)
     if [[ -n "$ss2022_pass" && "$ss2022_pass" != "null" ]]; then
-        local ss_enc
-        ss_enc=$(echo -n "2022-blake3-aes-128-gcm:${ss2022_pass}" | base64 -w 0)
-        links+=("ss://${ss_enc}@${domain}:10010#${user}-SS-2022")
+        local server_psk
+        server_psk=$(jq -r '.inbounds[] | select(.port == 10010) | .settings.password' /etc/xray/config.json 2>/dev/null)
+        if [[ -n "$server_psk" && "$server_psk" != "null" ]]; then
+            local ss2022_enc=$(echo -n "2022-blake3-aes-256-gcm:${server_psk}:${ss2022_pass}" | base64 -w 0 | tr -d '\n')
+            links+=("ss://${ss2022_enc}@${domain}:10010#${user}-SS-2022")
+        fi
+        local ssws_enc=$(echo -n "aes-128-gcm:${ss2022_pass}" | base64 -w 0 | tr -d '\n')
+        links+=("ss://${ssws_enc}@${domain}:443?plugin=v2ray-plugin%3Btls%3Bhost%3D${domain}%3Bpath%3D%2Fssws#${user}-SS-WS")
     fi
 
     # 6. Hysteria 2
     local hy2_pass
     hy2_pass=$(jq -r --arg u "$user" '.hysteria2[]? | select(.user == $u) | .password // .auth' "$USERS_FILE" 2>/dev/null | head -1)
     if [[ -n "$hy2_pass" && "$hy2_pass" != "null" ]]; then
-        links+=("hy2://${hy2_pass}@${domain}:443?sni=${domain}&insecure=0#${user}-Hysteria2")
+        links+=("hysteria2://${user}:${hy2_pass}@${domain}:443?sni=${domain}&insecure=0#${user}-Hysteria2")
     fi
 
     # If no links generated, clean up and exit

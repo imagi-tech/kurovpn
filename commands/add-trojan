@@ -35,11 +35,16 @@ exp=$(date -d "$days days" +%Y-%m-%d)
 password=$(gen_uuid)
 client_json=$(make_trojan_client "$password" "$user")
 
+source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
+
 xray_add_client "trojan" "$client_json" || { echo "Error: failed to update Xray config."; exit 1; }
 users_add "trojan" "$user" "$exp" "\"password\":\"$password\""
 
-link_ws="trojan://${password}@${domain}:443?path=/t&security=tls&type=ws&host=${domain}#${user}"
-link_grpc="trojan://${password}@${domain}:443?path=trojan-grpc&security=tls&type=grpc&serviceName=trojan-grpc&host=${domain}#${user}"
+# Build subscription immediately
+sub_build_user "$user" 2>/dev/null || true
+
+link_ws="trojan://${password}@${domain}:443?path=/t&security=tls&type=ws&host=${domain}&sni=${domain}#${user}-Trojan-WS"
+link_grpc="trojan://${password}@${domain}:443?mode=gun&security=tls&type=grpc&serviceName=trojan-grpc&host=${domain}&sni=${domain}#${user}-Trojan-gRPC"
 
 clear
 ui_card_begin "Xray Trojan Account"
@@ -53,10 +58,13 @@ ui_kv "Path WS"      "/trojan"
 ui_kv "Subscription" "https://${domain}/sub/${user}"
 ui_card_end
 
-echo -e "  ${CYAN}WS TLS${NC} : ${link_ws}"
-echo -e "  ${CYAN}gRPC${NC}   : ${link_grpc}"
-echo ""
+echo -e "\n  ${YELLOW}─── Client Import Links (Copy all at once to Happ/v2rayN) ───${NC}"
+echo "$link_ws"
+echo "$link_grpc"
+echo -e "  ${YELLOW}─────────────────────────────────────────────────────────────${NC}\n"
+
 echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
+echo -e "  ${GREEN}Plaintext Link   :${NC} https://${domain}/sub/${user}.txt"
 
 ui_qr "$link_ws" "Scan Trojan (WS TLS) QR Code"
 

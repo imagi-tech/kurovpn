@@ -45,10 +45,15 @@ exp=$(date -d "$days days" +%Y-%m-%d)
 uuid=$(gen_uuid)
 client_json=$(make_reality_client "$uuid" "$user")
 
+source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
+
 xray_add_client "reality" "$client_json" || { echo "Error: failed to update Xray config."; exit 1; }
 users_add "reality" "$user" "$exp" "\"uuid\":\"$uuid\""
 
-link="vless://${uuid}@${domain}:8443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${domain}&fp=chrome&pbk=${pubkey}&sid=${shortid}&type=tcp#${user}"
+# Build subscription immediately
+sub_build_user "$user" 2>/dev/null || true
+
+link="vless://${uuid}@${domain}:8443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${domain}&fp=chrome&pbk=${pubkey}&sid=${shortid}&type=tcp#${user}-Reality"
 
 clear
 ui_card_begin "VLESS-Reality Account"
@@ -64,8 +69,12 @@ ui_kv "Expired"      "${exp}"
 ui_kv "Subscription" "https://${domain}/sub/${user}"
 ui_card_end
 
-echo -e "  ${CYAN}Reality Link:${NC} ${link}\n"
+echo -e "\n  ${YELLOW}─── Client Import Link (Copy-Paste) ─────────────────────────${NC}"
+echo "$link"
+echo -e "  ${YELLOW}─────────────────────────────────────────────────────────────${NC}\n"
+
 echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
+echo -e "  ${GREEN}Plaintext Link   :${NC} https://${domain}/sub/${user}.txt"
 
 ui_qr "$link" "Scan VLESS-Reality QR Code"
 
