@@ -43,7 +43,7 @@ case "$opt" in
         rm -rf "$tmp"
         systemctl restart xray nginx wg-quick@wg0 ipsec xl2tpd 2>/dev/null
         echo "  Restore complete."
-        read -n1 -s -r -p "  Press any key..."
+        ui_wait_key
         ;;
     3) botmenu ;;
     X|x) exit 0 ;;

@@ -89,6 +89,4 @@ else
     journalctl -u kurovpn-bot -n 15 --no-pager 2>/dev/null
 fi
 
-echo ""
-read -n1 -s -r -p "  Press any key..."
-menu
+ui_wait_key

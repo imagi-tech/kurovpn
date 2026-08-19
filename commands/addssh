@@ -75,7 +75,4 @@ ui_kv "WS HTTP"   "80, 2082"
 ui_card_end
 echo -e "  ${CYAN}Payload WS:${NC}"
 echo -e "  GET / HTTP/1.1[crlf]Host: ${domain}[crlf]Upgrade: websocket[crlf][crlf]"
-if [[ -t 0 ]]; then
-    read -n 1 -s -r -p "Press any key to continue..."
-fi
-echo ""
+ui_wait_key

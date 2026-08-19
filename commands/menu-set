@@ -44,7 +44,7 @@ case "$opt" in
     2) systemctl restart xray && echo "  Xray restarted." || echo "  Failed."; sleep 1 ;;
     3) systemctl restart nginx && echo "  Nginx restarted." || echo "  Failed."; sleep 1 ;;
     4) systemctl restart sshd 2>/dev/null || systemctl restart ssh; systemctl restart dropbear; echo "  SSH restarted."; sleep 1 ;;
-    5) speedtest 2>/dev/null || speedtest-cli 2>/dev/null; echo ""; read -n1 -s -r -p "  Press any key..." ;;
+    5) speedtest 2>/dev/null || speedtest-cli 2>/dev/null; ui_wait_key ;;
     6) htop ;;
     7)
         echo ""
@@ -59,7 +59,7 @@ case "$opt" in
         ;;
     8) bmenu ;;
     9) dm-menu ;;
-    10) vnstat 2>/dev/null || echo "vnstat not installed"; echo ""; read -n1 -s -r -p "  Press any key..." ;;
+    10) vnstat 2>/dev/null || echo "vnstat not installed"; ui_wait_key ;;
     11) bbr ;;
     12) /usr/bin/uninstall; exit 0 ;;
     X|x) clear; exit 0 ;;

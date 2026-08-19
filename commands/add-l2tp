@@ -64,8 +64,5 @@ ui_kv "PSK"       "${PSK}"
 ui_kv "Expired"   "${exp}"
 ui_kv "Server IP" "${PUBLIC_IP}"
 ui_card_end
-if [[ -t 0 ]]; then
-    read -n 1 -s -r -p "Press any key to continue..."
-fi
-echo ""
+ui_wait_key
 

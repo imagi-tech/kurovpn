@@ -15,7 +15,7 @@ list_l2tp() {
     printf "  %-15s %-12s\n" "Username" "Expired"
     echo  "  $(printf '%.s─' {1..28})"
     grep '^###' /etc/funny/.l2tp 2>/dev/null | awk '{printf "  %-15s %-12s\n", $2, $3}'
-    echo ""; read -n1 -s -r -p "  Press any key..."
+    ui_wait_key
 }
 
 del_l2tp() {
@@ -31,7 +31,7 @@ del_l2tp() {
     [[ -f "$USERS_FILE" ]] && { t="${USERS_FILE}.tmp.$$"; jq --arg u "$user" '.l2tp |= map(select(.user != $u))' "$USERS_FILE" > "$t"; mv "$t" "$USERS_FILE"; chmod 600 "$USERS_FILE"; }
     chmod 600 /etc/ppp/chap-secrets /etc/ipsec.d/passwd 2>/dev/null
     echo "  Deleted: $user"
-    read -n1 -s -r -p "  Press any key..."
+    ui_wait_key
 }
 
 renew_l2tp() {
@@ -45,7 +45,7 @@ renew_l2tp() {
     local new=$(date -d "$old + $days days" +%Y-%m-%d)
     sed -i "s/^### $user .*/### $user $new/" /etc/funny/.l2tp
     echo "  Renewed: $user → $new"
-    read -n1 -s -r -p "  Press any key..."
+    ui_wait_key
 }
 
 while true; do

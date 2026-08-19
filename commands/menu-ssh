@@ -29,7 +29,7 @@ list_ssh() {
     done < /etc/passwd
 
     echo ""
-    read -n 1 -s -r -p "  Press any key..."
+    ui_wait_key
 }
 
 # ── Delete SSH user ────────────────────────────────────
@@ -50,7 +50,7 @@ del_ssh() {
         chmod 600 "$USERS_FILE"
     }
     echo "  Deleted: $user"
-    read -n 1 -s -r -p "  Press any key..."
+    ui_wait_key
 }
 
 # ── Renew SSH user ─────────────────────────────────────
@@ -70,7 +70,7 @@ renew_ssh() {
     new_exp=$(date -d "$old_exp + $days days" +%Y-%m-%d 2>/dev/null) || new_exp=$(date -d "+$days days" +%Y-%m-%d)
     chage -E "$new_exp" "$user" 2>/dev/null
     echo "  Renewed: $user → $new_exp"
-    read -n 1 -s -r -p "  Press any key..."
+    ui_wait_key
 }
 
 # ── Trial account ──────────────────────────────────────
@@ -90,7 +90,7 @@ trial_ssh() {
     ui_kv "Expired"  "$texp"
     ui_kv "Ports"    "22, 3303, 109, 111, 69"
     ui_card_end
-    read -n 1 -s -r -p "  Press any key..."
+    ui_wait_key
 }
 
 # ── Online users ───────────────────────────────────────
@@ -101,7 +101,7 @@ online_ssh() {
         echo "  $ip"
     done
     echo ""
-    read -n 1 -s -r -p "  Press any key..."
+    ui_wait_key
 }
 
 # ── Main menu ──────────────────────────────────────────

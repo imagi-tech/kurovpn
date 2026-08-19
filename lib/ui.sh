@@ -190,9 +190,14 @@ ui_gauge() {
 
 # ui_wait_key
 ui_wait_key() {
-    if [[ -t 0 ]]; then
-        echo ""
-        read -n 1 -s -r -p "  Press any key to continue..."
-        echo ""
+    echo ""
+    # Flush any unread trailing characters from stdin
+    while read -r -t 0.05 -n 10000 _ 2>/dev/null; do :; done
+    echo -en "  ${YELLOW}Press [Enter] to return to menu...${NC} "
+    if [[ -e /dev/tty && -t 0 ]]; then
+        read -r _ </dev/tty 2>/dev/null || read -r _ 2>/dev/null || true
+    else
+        read -r _ 2>/dev/null || true
     fi
+    echo ""
 }

@@ -39,7 +39,7 @@ case "$opt" in
         /root/.acme.sh/acme.sh --installcert -d "$dom" --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
         systemctl restart nginx
         echo "  Done."
-        read -n1 -s -r -p "  Press any key..."
+        ui_wait_key
         ;;
     3)
         echo ""
@@ -63,7 +63,7 @@ case "$opt" in
         /root/.acme.sh/acme.sh --installcert -d "$DNS" --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
         systemctl restart nginx
         echo "  Done."
-        read -n1 -s -r -p "  Press any key..."
+        ui_wait_key
         ;;
     X|x) exit 0 ;;
 esac

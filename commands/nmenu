@@ -17,7 +17,7 @@ list_noobz() {
     else
         echo "  NoobZVPNS is not installed."
     fi
-    echo ""; read -n1 -s -r -p "  Press any key..."
+    ui_wait_key
 }
 
 add_noobz() {
@@ -25,24 +25,24 @@ add_noobz() {
     ui_header "Create NoobZVPNS Account"
     if [[ ! -x /usr/bin/noobzvpns ]]; then
         echo "  NoobZVPNS is not installed."
-        read -n1 -s -r -p "  Press any key..."
+        ui_wait_key
         return
     fi
     read -p "  Username  : " user
     read -s -p "  Password  : " pass; echo
     read -p "  Days      : " days
-    [[ -z "$user" || -z "$pass" || ! "$days" =~ ^[0-9]+$ ]] && { echo "  Invalid input."; read -n1; return; }
+    [[ -z "$user" || -z "$pass" || ! "$days" =~ ^[0-9]+$ ]] && { echo "  Invalid input."; ui_wait_key; return; }
     /usr/bin/noobzvpns --add-user "$user" "$pass" "$days" 2>/dev/null && echo "  Added: $user" || echo "  Failed."
-    read -n1 -s -r -p "  Press any key..."
+    ui_wait_key
 }
 
 del_noobz() {
     clear
     ui_header "Delete NoobZVPNS User"
-    if [[ ! -x /usr/bin/noobzvpns ]]; then echo "  Not installed."; read -n1; return; fi
+    if [[ ! -x /usr/bin/noobzvpns ]]; then echo "  Not installed."; ui_wait_key; return; fi
     read -p "  Username to delete: " user
     /usr/bin/noobzvpns --remove-user "$user" 2>/dev/null && echo "  Deleted: $user" || echo "  Failed."
-    read -n1 -s -r -p "  Press any key..."
+    ui_wait_key
 }
 
 while true; do

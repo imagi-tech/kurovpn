@@ -78,13 +78,13 @@ EOF
         cat /etc/wireguard/clients/${CLIENT_NAME}.conf
         ui_card_end
         ui_qr "$(cat /etc/wireguard/clients/${CLIENT_NAME}.conf 2>/dev/null)" "WireGuard QR Code"
-        read -n1 -s -r -p "  Press any key..."
+        ui_wait_key
         ;;
     2)
         clear
         ui_header "WireGuard Clients"
         grep '^###' /etc/wireguard/wg0.conf 2>/dev/null | awk '{printf "  %-15s exp: %s\n", $2, $3}'
-        echo ""; read -n1 -s -r -p "  Press any key..."
+        ui_wait_key
         ;;
     3)
         read -p "  Client to delete: " name
@@ -94,7 +94,8 @@ EOF
         sed -i "/^### $name/d" /etc/funny/.wg 2>/dev/null
         [[ -f "$USERS_FILE" ]] && { t="${USERS_FILE}.tmp.$$"; jq --arg u "$name" '.wireguard |= map(select(.user != $u))' "$USERS_FILE" > "$t"; mv "$t" "$USERS_FILE"; chmod 600 "$USERS_FILE"; }
         systemctl restart wg-quick@wg0 2>/dev/null
-        echo "  Deleted: $name"; read -n1 -s -r -p "  Press any key..."
+        echo "  Deleted: $name"
+        ui_wait_key
         ;;
     4)
         read -p "  Client name: " name
@@ -107,7 +108,7 @@ EOF
         else
             echo "  Not found."
         fi
-        read -n1 -s -r -p "  Press any key..."
+        ui_wait_key
         ;;
     X|x) exit 0 ;;
 esac
