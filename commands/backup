@@ -5,11 +5,11 @@
 #
 #  backup — Backup KUROVPN configuration
 
-BACKUP_FILE="/root/backup-$(date +%Y%m%d-%H%M).tar.gz"
+BACKUP_FILE="/root/backup/kurovpn_backup_$(date +%Y%m%d-%H%M).tar.gz"
 TMP_DIR="/root/kurovpn-backup-tmp"
 
 rm -rf "$TMP_DIR" 2>/dev/null
-mkdir -p "$TMP_DIR"
+mkdir -p "$TMP_DIR" /root/backup
 
 # Copy config files
 cp -r /etc/xray "$TMP_DIR/" 2>/dev/null
@@ -34,7 +34,7 @@ if [[ -f "$BACKUP_FILE" ]]; then
     CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
     KEY=$(cat /etc/funny/.keybot 2>/dev/null)
     if [[ -n "$KEY" && -n "$CHATID" ]]; then
-        curl -s --max-time 10 -F "chat_id=$CHATID" -F "document=@$BACKUP_FILE" \
+        curl -s --max-time 2 -F "chat_id=$CHATID" -F "document=@$BACKUP_FILE" \
             "https://api.telegram.org/bot$KEY/sendDocument" >/dev/null 2>&1
     fi
 else

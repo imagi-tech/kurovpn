@@ -6,6 +6,7 @@
 #  System management menu
 
 source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
+ui_require_root
 
 while true; do
 clear

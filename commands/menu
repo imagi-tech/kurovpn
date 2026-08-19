@@ -8,6 +8,9 @@
 source /usr/lib/kurovpn/ui.sh 2>/dev/null || source /home/azureuser/vpn_script/lib/ui.sh 2>/dev/null || true
 source /usr/lib/kurovpn/bbr.sh 2>/dev/null || source /home/azureuser/vpn_script/modules/bbr.sh 2>/dev/null || true
 
+# Enforce root execution
+ui_require_root
+
 domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
 MYIP=$(curl -s --connect-timeout 2 ipinfo.io/ip 2>/dev/null || curl -s --connect-timeout 2 ifconfig.me || echo "unknown")
 USERS_FILE="/etc/kurovpn/users.json"
@@ -21,7 +24,7 @@ _get_total_users() {
 }
 
 while true; do
-clear
+clear 2>/dev/null || true
 ui_header "Main Dashboard" "KUROVPN › Core"
 
 # ── System Metrics ───────────────────────────
@@ -45,7 +48,8 @@ disk_total=$(df -h / 2>/dev/null | awk 'NR==2 {print $2}')
 [[ -z "$disk_pct" ]] && disk_pct=0
 
 echo -e "  ${WHITE}Server:${NC} ${CYAN}${domain}${NC} (${MYIP})"
-echo -e "  ${WHITE}Uptime:${NC} ${uptime_str}  ·  ${WHITE}OS:${NC} $(lsb_release -sd 2>/dev/null || cat /etc/os-release | head -1 | cut -d= -f2 | tr -d '\"')"
+echo -e "  ${WHITE}OS:${NC}     $(lsb_release -sd 2>/dev/null || cat /etc/os-release | head -1 | cut -d= -f2 | tr -d '\"')"
+echo -e "  ${WHITE}Uptime:${NC} ${uptime_str}"
 echo ""
 
 echo -e "  ${WHITE}CPU:${NC}  $(ui_gauge "$cpu_usage" 12 "(${cpu_cores} Core)")"
@@ -65,12 +69,12 @@ echo -e "  ${YELLOW}Registered Clients:${NC} ${WHITE}${total_u}${NC} total acros
 echo ""
 
 # ── Menu Options ─────────────────────────────
-ui_card_begin "Protocol Management"
-_card_row "${GREEN} 1)${NC} SSH & Dropbear         ${GREEN} 6)${NC} Client Subscriptions"
-_card_row "${GREEN} 2)${NC} Xray Core (VMess/VLess) ${GREEN} 7)${NC} TCP BBR Speed Booster"
-_card_row "${GREEN} 3)${NC} Xray Reality & SS-2022  ${GREEN} 8)${NC} System Settings & Logs"
-_card_row "${GREEN} 4)${NC} Hysteria 2 (QUIC)       ${GREEN} 9)${NC} Telegram Bot & Backup"
-_card_row "${GREEN} 5)${NC} WireGuard & L2TP        ${GREEN}10)${NC} Domain & SSL Cert"
+ui_card_begin "Protocol & System Management"
+_card_row "${GREEN} 1)${NC} SSH & Dropbear          ${GREEN} 6)${NC} Subscriptions"
+_card_row "${GREEN} 2)${NC} Xray Core Protocols     ${GREEN} 7)${NC} TCP BBR Booster"
+_card_row "${GREEN} 3)${NC} Hysteria 2 (QUIC)       ${GREEN} 8)${NC} Settings & Logs"
+_card_row "${GREEN} 4)${NC} WireGuard VPN           ${GREEN} 9)${NC} Bot & Backup"
+_card_row "${GREEN} 5)${NC} L2TP / IPsec VPN       ${GREEN}10)${NC} Domain & Cert"
 ui_card_end
 
 echo -e "  ${GREEN}V)${NC} Run Full Diagnostics (Verify)   ${RED}X)${NC} Exit"
@@ -80,9 +84,9 @@ read -p "  Select Option [1-10 / V / X]: " opt
 case "$opt" in
     1) menu-ssh ;;
     2) menu-xray ;;
-    3) menu-xray ;;
-    4) add-hysteria2 ;;
-    5) Menu-WGF ;;
+    3) menu-hy2 ;;
+    4) Menu-WGF ;;
+    5) lmenu ;;
     6)
         clear
         ui_header "Subscriptions" "Main › Subscriptions"

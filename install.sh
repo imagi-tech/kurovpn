@@ -7,7 +7,23 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+
+# ── Auto-Bootstrap for curl | bash execution ───────────
+if [ ! -f "$SCRIPT_DIR/lib/common.sh" ]; then
+    echo -e "\033[0;34m[INFO]\033[0m  Fetching KUROVPN package from repository..."
+    TMP_BOOTSTRAP_DIR="/tmp/kurovpn-bootstrap-$$"
+    mkdir -p "$TMP_BOOTSTRAP_DIR"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "https://github.com/imagi-tech/kurovpn/archive/refs/heads/main.tar.gz" | tar -xz --strip-components=1 -C "$TMP_BOOTSTRAP_DIR"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO- "https://github.com/imagi-tech/kurovpn/archive/refs/heads/main.tar.gz" | tar -xz --strip-components=1 -C "$TMP_BOOTSTRAP_DIR"
+    else
+        apt-get update -qq && apt-get install -y -qq curl tar >/dev/null 2>&1
+        curl -fsSL "https://github.com/imagi-tech/kurovpn/archive/refs/heads/main.tar.gz" | tar -xz --strip-components=1 -C "$TMP_BOOTSTRAP_DIR"
+    fi
+    exec bash "$TMP_BOOTSTRAP_DIR/install.sh" "$@"
+fi
 
 # ── Source Libraries ───────────────────────────────────
 source "$SCRIPT_DIR/lib/common.sh"
@@ -82,7 +98,7 @@ install_commands() {
     mkdir -p /usr/lib/kurovpn
 
     local cmd_list=(
-        "menu" "menu-ssh" "menu-xray" "menu-set"
+        "menu" "menu-ssh" "menu-xray" "menu-hy2" "menu-set"
         "Menu-WGF" "nmenu" "lmenu" "bmenu" "botmenu" "dm-menu"
         "addssh" "add-l2tp" "add-ssws" "add-trojan" "add-vless" "add-vmess"
         "add-reality" "add-ss2022" "add-hysteria2"

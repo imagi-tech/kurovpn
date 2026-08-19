@@ -9,6 +9,7 @@ source /usr/lib/kurovpn/common.sh 2>/dev/null || true
 source /usr/lib/kurovpn/xray-clients.sh 2>/dev/null || true
 source /usr/lib/kurovpn/hysteria-clients.sh 2>/dev/null || true
 source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
+ui_require_root
 
 USERS_FILE="/etc/kurovpn/users.json"
 domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
@@ -17,7 +18,7 @@ clear
 ui_header "Create Hysteria2 Account" "Xray › New Hysteria2"
 
 while true; do
-    read -p "Username  : " user
+    read -p "Username  : " user || exit 1
     [[ -z "$user" ]] && continue
     valid_username "$user" || { echo "Error: alphanumeric and underscore only."; continue; }
     user_exists "hysteria2" "$user" && { echo "Error: user '$user' already exists."; continue; }
@@ -25,7 +26,7 @@ while true; do
 done
 
 while true; do
-    read -p "Duration (days): " days
+    read -p "Duration (days): " days || exit 1
     [[ "$days" =~ ^[0-9]+$ ]] && [[ "$days" -gt 0 ]] && break
     echo "Error: enter a positive number."
 done
@@ -55,7 +56,7 @@ ui_qr "$link" "Scan Hysteria2 QR Code"
 CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
 KEY=$(cat /etc/funny/.keybot 2>/dev/null)
 if [[ -n "$KEY" && -n "$CHATID" ]]; then
-    curl -s --max-time 10 -d "chat_id=$CHATID&text=Hysteria2+$user+created+exp+$exp&parse_mode=html" \
+    curl -s --max-time 2 -d "chat_id=$CHATID&text=Hysteria2+$user+created+exp+$exp&parse_mode=html" \
         "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
 fi
 

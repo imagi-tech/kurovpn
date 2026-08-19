@@ -6,6 +6,7 @@
 #  Domain & Certificate manager
 
 source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
+ui_require_root
 
 while true; do
 clear
@@ -46,7 +47,7 @@ case "$opt" in
         read -s -p "  Cloudflare Key    : " CF_KEY; echo
         read -p "  Base Domain       : " BASEDOM
         [[ -z "$CF_ID" || -z "$CF_KEY" || -z "$BASEDOM" ]] && { echo "  All fields required."; sleep 2; continue; }
-        IP=$(curl -s ipinfo.io/ip 2>/dev/null)
+        IP=$(curl -s --connect-timeout 2 ipinfo.io/ip 2>/dev/null)
         SUB=$(tr </dev/urandom -dc a-z0-9 | head -c7)
         DNS="${SUB}.${BASEDOM}"
 

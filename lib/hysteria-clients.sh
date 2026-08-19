@@ -12,23 +12,26 @@ hy_regen() {
     local domain
     domain=$(cat /etc/xray/domain 2>/dev/null || echo "localhost")
 
-    local auth_yaml=""
-    local users
-    users=$(jq -r '.hysteria2[]?' "$USERS_FILE" 2>/dev/null)
+    local count
+    count=$(jq '.hysteria2 | length' "$USERS_FILE" 2>/dev/null || echo 0)
 
-    if [[ -n "$users" ]]; then
-        # Use last user's password (v2.12 only supports single-password auth)
-        local lastpass
-        lastpass=$(jq -r '.hysteria2[-1].password' "$USERS_FILE" 2>/dev/null)
+    local auth_yaml=""
+    if [[ "$count" -gt 0 ]]; then
         auth_yaml="auth:
-  type: password
-  password: ${lastpass}"
+  type: userpass
+  userpass:"
+        while read -r u p; do
+            [[ -z "$u" || -z "$p" ]] && continue
+            auth_yaml="${auth_yaml}
+    ${u}: ${p}"
+        done < <(jq -r '.hysteria2[]? | "\(.user) \(.password)"' "$USERS_FILE" 2>/dev/null)
     else
         local placeholder
-        placeholder=$(head -c 24 /dev/urandom 2>/dev/null | base64 -w0 2>/dev/null || openssl rand -base64 24)
+        placeholder=$(head -c 16 /dev/urandom 2>/dev/null | base64 -w0 2>/dev/null || openssl rand -hex 16)
         auth_yaml="auth:
-  type: password
-  password: ${placeholder}"
+  type: userpass
+  userpass:
+    defaultuser: ${placeholder}"
     fi
 
     cat > "$HYSTERIA_CONFIG" << HYCONF
@@ -40,6 +43,7 @@ tls:
   key: /etc/xray/xray.key
 
 ${auth_yaml}
+
 masquerade:
   type: proxy
   proxy:

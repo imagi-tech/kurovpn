@@ -6,6 +6,7 @@
 #  WireGuard Account Manager
 
 source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
+ui_require_root
 source /etc/wireguard/params 2>/dev/null
 USERS_FILE="/etc/kurovpn/users.json"
 domain=$(cat /etc/xray/domain 2>/dev/null)
@@ -36,7 +37,9 @@ case "$opt" in
         exp=$(date -d "$days days" +%Y-%m-%d)
         CLIENT_PRIV_KEY=$(wg genkey)
         CLIENT_PUB_KEY=$(echo "$CLIENT_PRIV_KEY" | wg pubkey)
-        CLIENT_IP="10.66.66.$(( ($(grep -c '###' /etc/wireguard/wg0.conf 2>/dev/null || echo 0) + 2) ))"
+        local_count=$(grep -c '^### ' /etc/wireguard/wg0.conf 2>/dev/null || true)
+        local_count=${local_count:-0}
+        CLIENT_IP="10.66.66.$(( local_count + 2 ))"
 
         cat >> /etc/wireguard/wg0.conf << EOF
 
@@ -46,6 +49,7 @@ PublicKey = ${CLIENT_PUB_KEY}
 AllowedIPs = ${CLIENT_IP}/32
 EOF
 
+        mkdir -p /etc/wireguard/clients
         cat > /etc/wireguard/clients/${CLIENT_NAME}.conf << EOF
 [Interface]
 PrivateKey = ${CLIENT_PRIV_KEY}
@@ -54,7 +58,7 @@ DNS = 1.1.1.1, 8.8.8.8
 
 [Peer]
 PublicKey = ${SERVER_PUB_KEY}
-Endpoint = $(curl -s ifconfig.me):${SERVER_PORT}
+Endpoint = $(curl -s --connect-timeout 2 ifconfig.me):${SERVER_PORT}
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 EOF

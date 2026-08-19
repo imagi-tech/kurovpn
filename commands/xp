@@ -63,6 +63,14 @@ del_hysteria2_user() {
 }
 
 del_from_users() {
+    local proto="$1" user="$2"
+    local tmpfile="${USERS_FILE}.tmp.$$"
+    jq --arg proto "$proto" --arg user "$user" \
+        '.[$proto] |= map(select(.user != $user))' \
+        "$USERS_FILE" > "$tmpfile" 2>/dev/null
+    mv "$tmpfile" "$USERS_FILE" 2>/dev/null
+    chmod 600 "$USERS_FILE" 2>/dev/null
+}
 
 # ── Process Xray users ─────────────────────────────────
 for proto in vmess vless trojan shadowsocks reality ss2022; do

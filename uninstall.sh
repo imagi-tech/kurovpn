@@ -33,7 +33,11 @@ echo -e "  - NoobZVPNS, BadVPN, edu WS proxy"
 echo -e "  - Configuration files (/etc/xray, /etc/kurovpn, etc.)"
 echo -e "  - Cron jobs and iptables rules"
 echo ""
-read -p "Type 'yes' to confirm: " confirm
+if [[ "$1" == "-y" || "$1" == "--yes" || "$1" == "yes" ]]; then
+    confirm="yes"
+else
+    read -p "Type 'yes' to confirm: " confirm
+fi
 [[ "$confirm" == "yes" ]] || { echo "Aborted."; exit 0; }
 
 # ── Stop and disable services ──────────────────────────
@@ -41,7 +45,7 @@ info "Stopping services..."
 
 SERVICES=(
     xray nginx dropbear edu badvpn noobzvpns hysteria
-    "wg-quick@wg0" "wg-quick@wgcf"
+    kurovpn-bot "wg-quick@wg0" "wg-quick@wgcf"
     xl2tpd ipsec pptpd
 )
 
@@ -66,14 +70,14 @@ info "Removing installed binaries..."
 rm -f /usr/bin/xray /usr/bin/ws /usr/bin/badvpn /usr/bin/noobzvpns /usr/bin/hysteria
 rm -f /usr/bin/config.yaml
 
-# Remove KUROVPN commands (if installed in Phase 3)
-rm -f /usr/bin/menu /usr/bin/menu-ssh /usr/bin/menu-xray /usr/bin/menu-set
+# Remove KUROVPN commands
+rm -f /usr/bin/menu /usr/bin/menu-ssh /usr/bin/menu-xray /usr/bin/menu-hy2 /usr/bin/menu-set
 rm -f /usr/bin/Menu-WGF /usr/bin/nmenu /usr/bin/lmenu
 rm -f /usr/bin/bmenu /usr/bin/botmenu /usr/bin/dm-menu
 rm -f /usr/bin/addssh /usr/bin/add-l2tp /usr/bin/add-ssws
 rm -f /usr/bin/add-trojan /usr/bin/add-vless /usr/bin/add-vmess
 rm -f /usr/bin/add-reality /usr/bin/add-ss2022 /usr/bin/add-hysteria2
-rm -f /usr/bin/backup /usr/bin/xp /usr/bin/kurovpn-verify
+rm -f /usr/bin/backup /usr/bin/xp /usr/bin/bbr /usr/bin/sub /usr/bin/kurovpn-verify
 rm -f /usr/bin/uninstall
 
 # ── Remove library directory ───────────────────────────
@@ -93,8 +97,10 @@ rm -rf /etc/websocket
 rm -rf /var/log/xray
 rm -rf /var/lib/crot
 rm -rf /home/vps/public_html
+rm -rf /var/www/html/sub
 rm -rf /opt/kurovpn
 rm -rf /opt/src         # Libreswan build dir
+rm -f /etc/sysctl.d/99-kurovpn-bbr.conf
 rm -rf /root/.acme.sh    # acme.sh installation
 
 # ── Remove cron ────────────────────────────────────────

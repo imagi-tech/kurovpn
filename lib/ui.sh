@@ -14,10 +14,10 @@ CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m'
 
-UI_W=46   # inner content width (between border chars)
+UI_W=56   # inner content width (between border chars)
 
 # ── Internal helpers ─────────────────────────────────────
-_visible_len() { echo -en "$1" | sed 's/\x1b\[[0-9;]*m//g' | wc -m; }
+_visible_len() { echo -en "$1" | sed -r 's/\x1b\[[0-9;]*[a-zA-Z]//g' | wc -m; }
 
 _repeat() { printf "$1%.0s" $(seq 1 "$2"); }
 
@@ -47,6 +47,20 @@ _bot="${CYAN}╚$(_repeat '═' $UI_W)╝${NC}"
 _sep="${CYAN}╠$(_repeat '─' $UI_W)╣${NC}"
 _card_top="${CYAN}╭$(_repeat '─' $UI_W)╮${NC}"
 _card_bot="${CYAN}╰$(_repeat '─' $UI_W)╯${NC}"
+
+# ── Root Privilege Verification ───────────────────────────
+ui_require_root() {
+    if [[ $EUID -ne 0 ]]; then
+        echo -e "\n  ${YELLOW}[!] KUROVPN requires root privileges.${NC}"
+        if command -v sudo &>/dev/null; then
+            echo -e "      Elevating privileges via sudo...\n"
+            exec sudo -E "$0" "$@"
+        else
+            echo -e "  ${RED}[ERROR]${NC} Please run as root (e.g. 'sudo $0').\n"
+            exit 1
+        fi
+    fi
+}
 
 # ── Public components ────────────────────────────────────
 
@@ -105,12 +119,12 @@ ui_card_end() {
 # ui_kv  "Key"  "Value"
 ui_kv() {
     local key="$1" val="${2:-}"
-    printf "  ${CYAN}%-18s${NC}: %s\n" "$key" "$val"
+    printf "  ${CYAN}%-18s${NC}: %b\n" "$key" "$val"
 }
 
 # ui_pad K V  — same as ui_kv but key is plain (no cyan)
 ui_pad() {
-    printf "  %-18s : %s\n" "$1" "${2:-}"
+    printf "  %-18s : %b\n" "$1" "${2:-}"
 }
 
 # ui_badge ok|warn|fail "label"

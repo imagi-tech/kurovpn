@@ -6,6 +6,7 @@
 #  commands/bbr — TCP BBR Booster Menu
 
 source /usr/lib/kurovpn/ui.sh 2>/dev/null || source /home/azureuser/vpn_script/lib/ui.sh 2>/dev/null || true
+ui_require_root
 source /usr/lib/kurovpn/bbr.sh 2>/dev/null || source /home/azureuser/vpn_script/modules/bbr.sh 2>/dev/null || true
 
 while true; do

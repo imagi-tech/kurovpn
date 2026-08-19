@@ -6,6 +6,7 @@
 #  Telegram Bot Setup
 
 source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
+ui_require_root
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -29,7 +30,7 @@ echo "  Credentials saved."
 echo ""
 
 # Validate token
-BOT_USERNAME=$(curl -s --max-time 10 "https://api.telegram.org/bot${TOKEN}/getMe" 2>/dev/null | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
+BOT_USERNAME=$(curl -s --max-time 2 "https://api.telegram.org/bot${TOKEN}/getMe" 2>/dev/null | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
 if [[ -n "$BOT_USERNAME" ]]; then
     echo "  Token valid — bot @${BOT_USERNAME}"
 else

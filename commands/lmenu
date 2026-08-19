@@ -6,6 +6,7 @@
 #  L2TP/IPsec Account Manager
 
 source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
+ui_require_root
 USERS_FILE="/etc/kurovpn/users.json"
 
 list_l2tp() {

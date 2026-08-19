@@ -7,9 +7,10 @@
 
 USERS_FILE="/etc/kurovpn/users.json"
 domain=$(cat /etc/xray/domain 2>/dev/null || echo "")
-PUBLIC_IP=$(curl -s ipinfo.io/ip 2>/dev/null || echo "")
+PUBLIC_IP=$(curl -s --connect-timeout 2 ipinfo.io/ip 2>/dev/null || echo "")
 
 source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
+ui_require_root
 
 clear
 ui_header "Create SSH Account" "SSH › New"
@@ -30,7 +31,7 @@ while true; do
 done
 
 while true; do
-    read -p "Duration (days): " days
+    read -p "Duration (days): " days || exit 1
     [[ "$days" =~ ^[0-9]+$ ]] && [[ "$days" -gt 0 ]] && break
     echo "Error: enter a positive number."
 done

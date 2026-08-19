@@ -1,0 +1,120 @@
+#!/bin/bash
+#
+#  KUROVPN -- VPN Auto-Installer & Manager
+#  https://github.com/imagi-tech/kurovpn
+#
+#  Hysteria 2 (QUIC) Account Manager
+
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || source /home/azureuser/vpn_script/lib/ui.sh 2>/dev/null || true
+ui_require_root
+source /usr/lib/kurovpn/hysteria-clients.sh 2>/dev/null || source /home/azureuser/vpn_script/lib/hysteria-clients.sh 2>/dev/null || true
+USERS_FILE="/etc/kurovpn/users.json"
+
+list_hy2() {
+    clear
+    ui_header "Hysteria 2 Users" "Hysteria2 › List"
+    printf "  %-18s %-12s %s\n" "Username" "Expiry" "Password"
+    echo  "  $(printf '%.s─' {1..46})"
+
+    local found=0
+    if [[ -f "$USERS_FILE" ]]; then
+        while read u e p; do
+            [[ -z "$u" ]] && continue
+            printf "  %-18s %-12s %s\n" "$u" "$e" "$p"
+            found=1
+        done < <(jq -r '.hysteria2[]? | "\(.user) \(.exp) \(.password // .auth)"' "$USERS_FILE" 2>/dev/null)
+    fi
+    [[ "$found" -eq 0 ]] && echo "  No Hysteria2 users found."
+    ui_wait_key
+}
+
+del_hy2() {
+    clear
+    ui_header "Delete Hysteria 2 User" "Hysteria2 › Delete"
+    read -p "  Username to delete: " user
+    [[ -z "$user" ]] && return
+
+    if ! hy_user_exists "$user"; then
+        echo "  User '$user' does not exist."
+        ui_wait_key
+        return
+    fi
+
+    read -p "  Delete user '$user'? [y/N]: " confirm
+    [[ "$confirm" != "y" && "$confirm" != "Y" ]] && return
+
+    hy_del_user "$user" && {
+        users_del "hysteria2" "$user"
+        echo "  User '$user' successfully removed."
+    } || echo "  Failed to remove user."
+    ui_wait_key
+}
+
+renew_hy2() {
+    clear
+    ui_header "Renew Hysteria 2 User" "Hysteria2 › Renew"
+    read -p "  Username to renew: " user
+    [[ -z "$user" ]] && return
+
+    local old_exp
+    old_exp=$(jq -r --arg u "$user" '.hysteria2[]? | select(.user == $u) | .exp' "$USERS_FILE" 2>/dev/null)
+    if [[ -z "$old_exp" || "$old_exp" == "null" ]]; then
+        echo "  User '$user' not found."
+        ui_wait_key
+        return
+    fi
+
+    read -p "  Add Days: " days
+    [[ ! "$days" =~ ^[0-9]+$ ]] && { echo "  Invalid duration."; ui_wait_key; return; }
+
+    local new_exp
+    new_exp=$(date -d "$old_exp + $days days" +%Y-%m-%d)
+    
+    local t="${USERS_FILE}.tmp.$$"
+    jq --arg u "$user" --arg e "$new_exp" \
+        '.hysteria2 = [.hysteria2[] | if .user == $u then .exp = $e else . end]' \
+        "$USERS_FILE" > "$t" && mv "$t" "$USERS_FILE"
+    chmod 600 "$USERS_FILE"
+
+    echo "  Renewed '$user': $old_exp → $new_exp"
+    ui_wait_key
+}
+
+status_hy2() {
+    clear
+    ui_header "Hysteria 2 Status" "Hysteria2 › Status"
+    if systemctl is-active --quiet hysteria 2>/dev/null; then
+        ui_kv "Service Status" "${GREEN}Running (Active)${NC}"
+    else
+        ui_kv "Service Status" "${RED}Stopped (Inactive)${NC}"
+    fi
+    ui_kv "Port" "443 (UDP/QUIC)"
+    ui_kv "Domain" "$(cat /etc/xray/domain 2>/dev/null || echo unknown)"
+    ui_kv "Active Users" "$(jq '.hysteria2 | length' "$USERS_FILE" 2>/dev/null || echo 0)"
+    echo ""
+    ui_wait_key
+}
+
+while true; do
+clear
+ui_header "Hysteria 2 (QUIC)" "Main › Hysteria2"
+
+ui_item 1 "Create Account"
+ui_item 2 "List Accounts"
+ui_item 3 "Renew Account"
+ui_item 4 "Delete Account"
+ui_item 5 "Service Status"
+
+echo ""
+ui_footer
+read -p "  Select [1-5]: " opt
+
+case "$opt" in
+    1) add-hysteria2 ;;
+    2) list_hy2 ;;
+    3) renew_hy2 ;;
+    4) del_hy2 ;;
+    5) status_hy2 ;;
+    X|x) exit 0 ;;
+esac
+done
