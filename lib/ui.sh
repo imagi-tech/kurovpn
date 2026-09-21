@@ -64,8 +64,14 @@ ui_require_root() {
 
 # ── Public components ────────────────────────────────────
 
+# ui_clear
+ui_clear() {
+    printf "\033[2J\033[H\033[3J" 2>/dev/null || clear 2>/dev/null || true
+}
+
 # ui_header  "Screen Title"  ["Breadcrumb path"]
 ui_header() {
+    ui_clear
     local title="$1" breadcrumb="${2:-}"
     local domain
     domain=$(cat /etc/xray/domain 2>/dev/null || echo "unknown")
@@ -161,7 +167,16 @@ ui_qr() {
 # ui_pill "service_name" ["display_label"]
 ui_pill() {
     local svc="$1" label="${2:-$svc}"
-    if systemctl is-active --quiet "$svc" 2>/dev/null; then
+    local active=false
+    if [[ "$svc" == "ssh" ]]; then
+        if systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd 2>/dev/null; then
+            active=true
+        fi
+    elif systemctl is-active --quiet "$svc" 2>/dev/null; then
+        active=true
+    fi
+
+    if [[ "$active" == "true" ]]; then
         echo -en "${GREEN}● ${label}${NC}"
     else
         echo -en "${RED}○ ${label}${NC}"
@@ -188,14 +203,16 @@ ui_gauge() {
     echo -e "${color}[${bar}]${NC} ${WHITE}${pct}%${NC} ${detail}"
 }
 
-# ui_wait_key
+# ui_wait_key — flushes buffer and waits for Enter to continue
 ui_wait_key() {
     echo ""
-    # Flush any unread trailing characters from stdin
-    while read -r -t 0.05 -n 10000 _ 2>/dev/null; do :; done
-    echo -en "  ${YELLOW}Press [Enter] to return to menu...${NC} "
-    if [[ -e /dev/tty && -t 0 ]]; then
-        read -r _ </dev/tty 2>/dev/null || read -r _ 2>/dev/null || true
+    if [[ -t 0 ]]; then
+        # Flush standard input queue to discard any leftover newline/carriage returns
+        python3 -c 'import termios, sys; termios.tcflush(sys.stdin, termios.TCIFLUSH)' 2>/dev/null || \
+        while read -r -t 0.05 -n 10000 _ 2>/dev/null; do :; done
+        
+        # Read a line of input (printed to stderr, so it is visible)
+        read -r -p "  Press [Enter] to continue..."
     else
         read -r _ 2>/dev/null || true
     fi

@@ -67,16 +67,22 @@ xray_add_client() {
         jq_filter=". as \$root | \$root"
     done
 
-    # Simpler approach: iterate ports
     cp "$XRAY_CONFIG" "$tmpfile"
     for port in "${ports[@]}"; do
         jq --argjson client "$client_json" \
             "(.inbounds[] | select(.port == $port) | .settings.clients) += [\$client]" \
             "$tmpfile" > "${tmpfile}.2"
-        mv "${tmpfile}.2" "$tmpfile"
+        if [[ -s "${tmpfile}.2" ]]; then
+            mv "${tmpfile}.2" "$tmpfile"
+        fi
     done
-    mv "$tmpfile" "$XRAY_CONFIG"
-    chmod 644 "$XRAY_CONFIG"
+    if [[ -s "$tmpfile" ]] && jq . "$tmpfile" >/dev/null 2>&1; then
+        mv "$tmpfile" "$XRAY_CONFIG"
+        chmod 644 "$XRAY_CONFIG"
+    else
+        rm -f "$tmpfile" "${tmpfile}.2"
+        return 1
+    fi
 
     # Validate (warnings are OK, we only care about "Configuration OK")
     if ! /usr/bin/xray run -test -config "$XRAY_CONFIG" 2>/dev/null | grep -q "Configuration OK"; then
@@ -96,12 +102,19 @@ xray_del_client() {
     cp "$XRAY_CONFIG" "$tmpfile"
     for port in "${ports[@]}"; do
         jq --arg val "$value" \
-            "(.inbounds[] | select(.port == $port) | .settings.clients) |= map(select(.\"$field\" != \$val))" \
+            "(.inbounds[] | select(.port == $port) | .settings.clients) |= (if . then map(select(.\"$field\" != \$val)) else [] end)" \
             "$tmpfile" > "${tmpfile}.2"
-        mv "${tmpfile}.2" "$tmpfile"
+        if [[ -s "${tmpfile}.2" ]]; then
+            mv "${tmpfile}.2" "$tmpfile"
+        fi
     done
-    mv "$tmpfile" "$XRAY_CONFIG"
-    chmod 644 "$XRAY_CONFIG"
+    if [[ -s "$tmpfile" ]] && jq . "$tmpfile" >/dev/null 2>&1; then
+        mv "$tmpfile" "$XRAY_CONFIG"
+        chmod 644 "$XRAY_CONFIG"
+    else
+        rm -f "$tmpfile" "${tmpfile}.2"
+        return 1
+    fi
 
     if ! /usr/bin/xray run -test -config "$XRAY_CONFIG" 2>/dev/null | grep -q "Configuration OK"; then
         echo "Error: Xray config validation failed after deleting client." >&2
@@ -144,9 +157,13 @@ xray_add_ss2022_client() {
     jq --argjson client "$client_json" \
         "(.inbounds[] | select(.port == $port) | .settings.clients) += [\$client]" \
         "$tmpfile" > "${tmpfile}.2"
-    mv "${tmpfile}.2" "$tmpfile"
-    mv "$tmpfile" "$XRAY_CONFIG"
-    chmod 644 "$XRAY_CONFIG"
+    if [[ -s "${tmpfile}.2" ]] && jq . "${tmpfile}.2" >/dev/null 2>&1; then
+        mv "${tmpfile}.2" "$XRAY_CONFIG"
+        chmod 644 "$XRAY_CONFIG"
+    else
+        rm -f "$tmpfile" "${tmpfile}.2"
+        return 1
+    fi
     if ! /usr/bin/xray run -test -config "$XRAY_CONFIG" 2>/dev/null | grep -q "Configuration OK"; then
         echo "Error: Xray config validation failed after adding SS2022 client." >&2
         return 1
@@ -160,11 +177,15 @@ xray_del_ss2022_client() {
     local tmpfile="${XRAY_CONFIG}.tmp.$$"
     cp "$XRAY_CONFIG" "$tmpfile"
     jq --arg val "$value" \
-        "(.inbounds[] | select(.port == $port) | .settings.clients) |= map(select(.password != \$val))" \
+        "(.inbounds[] | select(.port == $port) | .settings.clients) |= (if . then map(select(.password != \$val)) else [] end)" \
         "$tmpfile" > "${tmpfile}.2"
-    mv "${tmpfile}.2" "$tmpfile"
-    mv "$tmpfile" "$XRAY_CONFIG"
-    chmod 644 "$XRAY_CONFIG"
+    if [[ -s "${tmpfile}.2" ]] && jq . "${tmpfile}.2" >/dev/null 2>&1; then
+        mv "${tmpfile}.2" "$XRAY_CONFIG"
+        chmod 644 "$XRAY_CONFIG"
+    else
+        rm -f "$tmpfile" "${tmpfile}.2"
+        return 1
+    fi
     if ! /usr/bin/xray run -test -config "$XRAY_CONFIG" 2>/dev/null | grep -q "Configuration OK"; then
         echo "Error: Xray config validation failed after deleting SS2022 client." >&2
         return 1
@@ -182,15 +203,25 @@ users_add() {
     local tmpfile="${USERS_FILE}.tmp.$$"
     jq --argjson entry "$entry" --arg proto "$proto" \
         '.[$proto] += [$entry]' "$USERS_FILE" > "$tmpfile"
-    mv "$tmpfile" "$USERS_FILE"
-    chmod 600 "$USERS_FILE"
+    if [[ -s "$tmpfile" ]] && jq . "$tmpfile" >/dev/null 2>&1; then
+        mv "$tmpfile" "$USERS_FILE"
+        chmod 600 "$USERS_FILE"
+    else
+        rm -f "$tmpfile"
+        return 1
+    fi
 }
 
 users_del() {
     local proto="$1" user="$2"
     local tmpfile="${USERS_FILE}.tmp.$$"
     jq --arg proto "$proto" --arg user "$user" \
-        '.[$proto] |= map(select(.user != $user))' "$USERS_FILE" > "$tmpfile"
-    mv "$tmpfile" "$USERS_FILE"
-    chmod 600 "$USERS_FILE"
+        '.[$proto] |= (if . then map(select(.user != $user)) else [] end)' "$USERS_FILE" > "$tmpfile"
+    if [[ -s "$tmpfile" ]] && jq . "$tmpfile" >/dev/null 2>&1; then
+        mv "$tmpfile" "$USERS_FILE"
+        chmod 600 "$USERS_FILE"
+    else
+        rm -f "$tmpfile"
+        return 1
+    fi
 }

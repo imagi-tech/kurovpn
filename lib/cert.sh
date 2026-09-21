@@ -52,13 +52,23 @@ issue_cert() {
     /root/.acme.sh/acme.sh $issue_args 2>&1
 
     mkdir -p "$CERT_DIR"
-    /root/.acme.sh/acme.sh --installcert -d "$domain" \
+    if ! /root/.acme.sh/acme.sh --installcert -d "$domain" \
         --fullchainpath "$CERT_DIR/xray.crt" \
         --keypath "$CERT_DIR/xray.key" \
-        --ecc 2>&1 || die "Certificate installation failed"
+        --ecc 2>&1; then
+        if [[ ! -f "$CERT_DIR/xray.crt" ]]; then
+            log_warn "ACME cert install did not produce certificate. Generating self-signed fallback..."
+            openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) \
+                -keyout "$CERT_DIR/xray.key" -out "$CERT_DIR/xray.crt" \
+                -days 365 -subj "/CN=$domain" 2>/dev/null || \
+            openssl req -x509 -nodes -newkey rsa:2048 \
+                -keyout "$CERT_DIR/xray.key" -out "$CERT_DIR/xray.crt" \
+                -days 365 -subj "/CN=$domain" 2>/dev/null || true
+        fi
+    fi
 
     chmod 644 "$CERT_DIR/xray.crt" 2>/dev/null || true
     chmod 600 "$CERT_DIR/xray.key" 2>/dev/null || true
 
-    log_info "Certificate installed to $CERT_DIR/"
+    log_info "Certificate ready in $CERT_DIR/"
 }

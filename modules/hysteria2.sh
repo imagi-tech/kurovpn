@@ -53,14 +53,12 @@ regenerate_hysteria_config() {
 
     local auth_yaml=""
     local users
-    users=$(jq -r '.hysteria2[]?' /etc/kurovpn/users.json 2>/dev/null)
+    users=$(jq -r '.hysteria2[-1].password // empty' /etc/kurovpn/users.json 2>/dev/null)
 
-    if [[ -n "$users" ]]; then
-        local lastpass
-        lastpass=$(jq -r '.hysteria2[-1].password' /etc/kurovpn/users.json 2>/dev/null)
+    if [[ -n "$users" && "$users" != "null" ]]; then
         auth_yaml="auth:
   type: password
-  password: ${lastpass}"
+  password: ${users}"
     else
         local placeholder
         placeholder=$(head -c 24 /dev/urandom 2>/dev/null | base64 -w0 2>/dev/null || openssl rand -base64 24)

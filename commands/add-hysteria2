@@ -36,7 +36,7 @@ password=$(openssl rand -base64 24 2>/dev/null | tr '+/' '-_' | tr -d '=\n')
 
 source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
 
-hy_add_user "$user" "$password" "$exp" || { echo "Error: failed to add Hysteria2 user."; exit 1; }
+hy_add_user "$user" "$password" "$exp" || { echo -e "\n  ${RED}[ERROR] Failed to add Hysteria2 user.${NC}"; ui_wait_key; exit 1; }
 
 # Build subscription immediately
 sub_build_user "$user" 2>/dev/null || true
@@ -62,8 +62,11 @@ echo -e "  ${GREEN}Plaintext Link   :${NC} https://${domain}/sub/${user}.txt"
 
 ui_qr "$link" "Scan Hysteria2 QR Code"
 
-CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
-KEY=$(cat /etc/funny/.keybot 2>/dev/null)
+# Telegram notification
+CHATID=""
+KEY=""
+[[ -f /etc/funny/.chatid ]] && CHATID=$(cat /etc/funny/.chatid)
+[[ -f /etc/funny/.keybot ]] && KEY=$(cat /etc/funny/.keybot)
 if [[ -n "$KEY" && -n "$CHATID" ]]; then
     curl -s --max-time 2 -d "chat_id=$CHATID&text=Hysteria2+$user+created+exp+$exp&parse_mode=html" \
         "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1

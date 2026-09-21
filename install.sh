@@ -65,17 +65,21 @@ verify_install() {
 
     local ok=0 fail=0
     for svc in "${svcs[@]}"; do
+        # If optional service unit does not exist on this distro, skip silently
+        if [[ "$svc" =~ ^(pptpd|noobzvpns)$ ]] && ! systemctl list-unit-files "$svc.service" &>/dev/null; then
+            continue
+        fi
         if svc_active "$svc"; then
             log_info "  OK : $svc"
-            ((ok++))
+            ok=$((ok + 1))
         else
             svc_start "$svc" 2>/dev/null || true
             if svc_active "$svc"; then
                 log_info "  OK : $svc (started)"
-                ((ok++))
+                ok=$((ok + 1))
             else
                 log_warn "  FAIL: $svc"
-                ((fail++))
+                fail=$((fail + 1))
             fi
         fi
     done
@@ -193,35 +197,35 @@ main() {
     create_dirs
     init_users_db
 
-    # 2. TLS certificate
+    # 2. Deploy management commands early so tools and menus are immediately accessible
+    install_commands
+
+    # 3. TLS certificate
     issue_cert "$domain" "$ARG_IP_VERSION"
 
-    # 3. Nginx (after cert)
+    # 4. Nginx (after cert)
     install_nginx "$domain"
 
-    # 4. Xray (after nginx)
+    # 5. Xray (after nginx)
     install_xray "$domain"
 
-    # 5. Hysteria2 (QUIC, after TLS cert)
+    # 6. Hysteria2 (QUIC, after TLS cert)
     install_hysteria2 "$domain"
 
-    # 6. SSH + Dropbear + edu WS
+    # 7. SSH + Dropbear + edu WS
     install_ssh
 
-    # 7. WireGuard
+    # 8. WireGuard
     install_wireguard
 
-    # 8. L2TP/IPsec + PPTP
-    install_l2tp
+    # 9. L2TP/IPsec + PPTP (optional legacy protocol)
+    install_l2tp || log_warn "L2TP/IPsec setup encountered warnings (skipping)"
 
-    # 9. NoobZVPNS
-    install_noobzvpns
+    # 10. NoobZVPNS (optional)
+    install_noobzvpns || log_warn "NoobZVPNS setup encountered warnings (skipping)"
 
-    # 10. BadVPN
-    install_badvpn
-
-    # 11. Management commands
-    install_commands
+    # 11. BadVPN (optional UDP gateway)
+    install_badvpn || log_warn "BadVPN setup encountered warnings (skipping)"
 
     # 12. Cron + iptables persistence
     setup_cron

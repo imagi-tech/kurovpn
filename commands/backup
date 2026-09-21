@@ -31,8 +31,10 @@ if [[ -f "$BACKUP_FILE" ]]; then
     echo "Backup saved: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
 
     # Telegram notification
-    CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
-    KEY=$(cat /etc/funny/.keybot 2>/dev/null)
+    CHATID=""
+    KEY=""
+    [[ -f /etc/funny/.chatid ]] && CHATID=$(cat /etc/funny/.chatid)
+    [[ -f /etc/funny/.keybot ]] && KEY=$(cat /etc/funny/.keybot)
     if [[ -n "$KEY" && -n "$CHATID" ]]; then
         curl -s --max-time 2 -F "chat_id=$CHATID" -F "document=@$BACKUP_FILE" \
             "https://api.telegram.org/bot$KEY/sendDocument" >/dev/null 2>&1

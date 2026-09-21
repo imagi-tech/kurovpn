@@ -37,7 +37,7 @@ client_json=$(make_vless_client "$uuid" "$user")
 
 source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
 
-xray_add_client "vless" "$client_json" || { echo "Error: failed to update Xray config."; exit 1; }
+xray_add_client "vless" "$client_json" || { echo -e "\n  ${RED}[ERROR] Failed to update Xray config.${NC}"; ui_wait_key; exit 1; }
 users_add "vless" "$user" "$exp" "\"uuid\":\"$uuid\""
 
 # Build subscription immediately
@@ -72,8 +72,11 @@ echo -e "  ${GREEN}Plaintext Link   :${NC} https://${domain}/sub/${user}.txt"
 
 ui_qr "$link_ws" "Scan VLess (WS TLS) QR Code"
 
-CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
-KEY=$(cat /etc/funny/.keybot 2>/dev/null)
+# Telegram notification
+CHATID=""
+KEY=""
+[[ -f /etc/funny/.chatid ]] && CHATID=$(cat /etc/funny/.chatid)
+[[ -f /etc/funny/.keybot ]] && KEY=$(cat /etc/funny/.keybot)
 if [[ -n "$KEY" && -n "$CHATID" ]]; then
     curl -s --max-time 2 -d "chat_id=$CHATID&text=VLess+$user+created+exp+$exp&parse_mode=html" \
         "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1

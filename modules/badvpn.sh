@@ -10,9 +10,17 @@ source "$SCRIPT_DIR/lib/common.sh"
 install_badvpn() {
     log_step "Installing BadVPN UDP Gateway"
 
-    # Copy pre-compiled binary from repo
-    cp "$SCRIPT_DIR/bin/badvpn" /usr/bin/badvpn
-    chmod +x /usr/bin/badvpn
+    # Stop service if running to avoid 'Text file busy'
+    systemctl stop badvpn 2>/dev/null || true
+
+    # Copy pre-compiled binary from repo safely
+    cp "$SCRIPT_DIR/bin/badvpn" /usr/bin/badvpn.tmp 2>/dev/null || true
+    if [[ -f /usr/bin/badvpn.tmp ]]; then
+        chmod +x /usr/bin/badvpn.tmp
+        mv -f /usr/bin/badvpn.tmp /usr/bin/badvpn
+    else
+        install -m 755 "$SCRIPT_DIR/bin/badvpn" /usr/bin/badvpn 2>/dev/null || true
+    fi
 
     # Systemd service
     cat > /etc/systemd/system/badvpn.service << 'BADVPN_UNIT'

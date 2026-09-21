@@ -16,9 +16,9 @@ check() {
     local label="$1"; shift
     local cmd="$*"
     if eval "$cmd"; then
-        echo -e "  ${GREEN}[PASS]${NC} $label"; ((PASS++))
+        echo -e "  ${GREEN}[PASS]${NC} $label"; PASS=$((PASS + 1))
     else
-        echo -e "  ${RED}[FAIL]${NC} $label"; ((FAIL++))
+        echo -e "  ${RED}[FAIL]${NC} $label"; FAIL=$((FAIL + 1))
     fi
 }
 
@@ -26,9 +26,9 @@ check_warn() {
     local label="$1"; shift
     local cmd="$*"
     if eval "$cmd"; then
-        echo -e "  ${GREEN}[PASS]${NC} $label"; ((PASS++))
+        echo -e "  ${GREEN}[PASS]${NC} $label"; PASS=$((PASS + 1))
     else
-        echo -e "  ${YELLOW}[WARN]${NC} $label"; ((WARN++))
+        echo -e "  ${YELLOW}[WARN]${NC} $label"; WARN=$((WARN + 1))
     fi
 }
 

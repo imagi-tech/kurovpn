@@ -30,13 +30,20 @@ install_l2tp() {
     local pub_ip=$(get_public_ip)
     local net_iface=$(get_default_iface)
 
-    L2TP_PASS=$(openssl rand -hex 8 2>/dev/null || echo "changeme123")
+    mkdir -p /etc/xl2tpd /etc/ppp /etc/ipsec.d
 
-    apt-get install -y -qq openssl xl2tpd pptpd \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+        -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+        openssl xl2tpd \
         libnss3-dev libnspr4-dev pkg-config libpam0g-dev \
         libcap-ng-dev libcap-ng-utils libselinux1-dev \
         libcurl4-nss-dev flex bison gcc make libnss3-tools \
         libevent-dev ppp libsystemd-dev 2>/dev/null || true
+
+    # pptpd was dropped in Ubuntu 24.04+ and Debian 12+; attempt install separately
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+        -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+        pptpd 2>/dev/null || true
 
     install_libreswan
 
@@ -88,7 +95,7 @@ conn xauth-psk
   rightmodecfgclient=yes
   modecfgpull=yes
   xauthby=file
-  ike-frag=yes
+  fragmentation=yes
   cisco-unity=yes
   also=shared
 include /etc/ipsec.d/*.conf
@@ -127,15 +134,16 @@ ms-dns 8.8.8.8
 ms-dns 8.8.4.4
 EOF
 
-    # PPTP
-    cat > /etc/pptpd.conf << EOF
+    # PPTP (if supported on distro)
+    if command -v pptpd &>/dev/null || [[ -f /usr/sbin/pptpd ]]; then
+        cat > /etc/pptpd.conf << EOF
 option /etc/ppp/options.pptpd
 logwtmp
 localip 192.168.41.1
 remoteip 192.168.41.10-100
 EOF
 
-    cat > /etc/ppp/options.pptpd << 'EOF'
+        cat > /etc/ppp/options.pptpd << 'EOF'
 name pptpd
 refuse-pap
 refuse-chap
@@ -151,6 +159,12 @@ novj
 novjccomp
 nologfd
 EOF
+        svc_enable pptpd 2>/dev/null || true
+        svc_restart pptpd 2>/dev/null || true
+        log_info "PPTP installed (use add-l2tp to create more users)"
+    else
+        log_info "PPTP skipped (package unavailable on this distribution)"
+    fi
 
     # Create default L2TP user
     local pass_enc=$(openssl passwd -1 "$L2TP_PASS")
@@ -165,13 +179,10 @@ EOF
 
     chmod 600 /etc/ipsec.secrets /etc/ppp/chap-secrets /etc/ipsec.d/passwd 2>/dev/null || true
 
-    svc_enable xl2tpd
-    svc_enable ipsec
-    svc_enable pptpd
-    svc_restart xl2tpd
-    svc_restart ipsec
-    svc_restart pptpd
+    svc_enable xl2tpd 2>/dev/null || true
+    svc_enable ipsec 2>/dev/null || true
+    svc_restart xl2tpd 2>/dev/null || true
+    svc_restart ipsec 2>/dev/null || true
 
     log_info "L2TP/IPsec installed. Default user: $L2TP_USER / $L2TP_PASS (PSK: $VPN_IPSEC_PSK)"
-    log_info "PPTP installed (use add-l2tp to create more users)"
 }

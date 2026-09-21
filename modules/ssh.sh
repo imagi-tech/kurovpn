@@ -56,9 +56,17 @@ DROPBEAR_CONF
 install_edu() {
     log_info "Installing edu WebSocket proxy"
 
-    # Copy ws binary from repo
-    cp "$SCRIPT_DIR/bin/ws" /usr/bin/ws
-    chmod +x /usr/bin/ws
+    # Stop service if running to prevent 'Text file busy'
+    systemctl stop edu 2>/dev/null || true
+
+    # Copy ws binary safely
+    cp "$SCRIPT_DIR/bin/ws" /usr/bin/ws.tmp 2>/dev/null || true
+    if [[ -f /usr/bin/ws.tmp ]]; then
+        chmod +x /usr/bin/ws.tmp
+        mv -f /usr/bin/ws.tmp /usr/bin/ws
+    else
+        install -m 755 "$SCRIPT_DIR/bin/ws" /usr/bin/ws 2>/dev/null || true
+    fi
 
     # Copy config
     cp "$SCRIPT_DIR/bin/config.yaml" /usr/bin/config.yaml

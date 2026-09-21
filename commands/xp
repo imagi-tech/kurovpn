@@ -29,47 +29,53 @@ del_from_xray() {
     local proto="$1" field="$2" val="$3"
     local tmpfile="${XRAY_CONFIG}.tmp.$$"
     local ports=($(get_xray_ports "$proto"))
+    cp "$XRAY_CONFIG" "$tmpfile" 2>/dev/null || return 1
     for port in "${ports[@]}"; do
-        cp "$XRAY_CONFIG" "$tmpfile" 2>/dev/null || continue
         jq --arg val "$val" \
-            "(.inbounds[] | select(.port == $port) | .settings.clients) |= map(select(.\"$field\" != \$val))" \
+            "(.inbounds[] | select(.port == $port) | .settings.clients) |= (if . then map(select(.\"$field\" != \$val)) else [] end)" \
             "$tmpfile" > "${tmpfile}.2" 2>/dev/null
-        mv "${tmpfile}.2" "$tmpfile" 2>/dev/null
-        cp "$tmpfile" "$XRAY_CONFIG" 2>/dev/null
+        if [[ -s "${tmpfile}.2" ]]; then
+            mv "${tmpfile}.2" "$tmpfile"
+        fi
     done
+    if [[ -s "$tmpfile" ]] && jq . "$tmpfile" >/dev/null 2>&1; then
+        mv "$tmpfile" "$XRAY_CONFIG"
+        chmod 644 "$XRAY_CONFIG"
+    fi
     rm -f "$tmpfile" "${tmpfile}.2"
 }
 
 del_from_xray_ss2022() {
     local val="$1"
-    local tmpfile="${XRAY_CONFIG}.tmp.$$"
-    cp "$XRAY_CONFIG" "$tmpfile" 2>/dev/null || return
-    jq --arg val "$val" \
-        "(.inbounds[] | select(.port == 10010) | .settings.users) |= map(select(.key != \$val))" \
-        "$tmpfile" > "${tmpfile}.2" 2>/dev/null
-    mv "${tmpfile}.2" "$tmpfile" 2>/dev/null
-    cp "$tmpfile" "$XRAY_CONFIG" 2>/dev/null
-    rm -f "$tmpfile" "${tmpfile}.2"
+    del_from_xray "ss2022" "password" "$val"
 }
 
 del_hysteria2_user() {
     local user="$1"
     local tmpfile="${USERS_FILE}.tmp.$$"
     jq --arg user "$user" \
-        '.hysteria2 |= map(select(.user != $user))' \
+        '.hysteria2 |= (if . then map(select(.user != $user)) else [] end)' \
         "$USERS_FILE" > "$tmpfile" 2>/dev/null
-    mv "$tmpfile" "$USERS_FILE" 2>/dev/null
-    chmod 600 "$USERS_FILE" 2>/dev/null
+    if [[ -s "$tmpfile" ]] && jq . "$tmpfile" >/dev/null 2>&1; then
+        mv "$tmpfile" "$USERS_FILE"
+        chmod 600 "$USERS_FILE" 2>/dev/null
+    else
+        rm -f "$tmpfile"
+    fi
 }
 
 del_from_users() {
     local proto="$1" user="$2"
     local tmpfile="${USERS_FILE}.tmp.$$"
     jq --arg proto "$proto" --arg user "$user" \
-        '.[$proto] |= map(select(.user != $user))' \
+        '.[$proto] |= (if . then map(select(.user != $user)) else [] end)' \
         "$USERS_FILE" > "$tmpfile" 2>/dev/null
-    mv "$tmpfile" "$USERS_FILE" 2>/dev/null
-    chmod 600 "$USERS_FILE" 2>/dev/null
+    if [[ -s "$tmpfile" ]] && jq . "$tmpfile" >/dev/null 2>&1; then
+        mv "$tmpfile" "$USERS_FILE"
+        chmod 600 "$USERS_FILE" 2>/dev/null
+    else
+        rm -f "$tmpfile"
+    fi
 }
 
 # ── Process Xray users ─────────────────────────────────
@@ -145,11 +151,11 @@ fi
 # ── Restart ────────────────────────────────────────────
 systemctl restart xray 2>/dev/null
 
-if systemctl is-active --quiet hysteria 2>/dev/null; then
+if systemctl is-active --quiet hysteria 2>/dev/null || systemctl is-enabled --quiet hysteria 2>/dev/null; then
     DOM=$(cat /etc/xray/domain 2>/dev/null || echo localhost)
     AUTH=""
-    USERPASS=$(jq -r '.hysteria2[-1].password' "$USERS_FILE" 2>/dev/null)
-    if [[ -n "$USERPASS" ]]; then
+    USERPASS=$(jq -r '.hysteria2[-1].password // empty' "$USERS_FILE" 2>/dev/null)
+    if [[ -n "$USERPASS" && "$USERPASS" != "null" ]]; then
         AUTH="auth:
   type: password
   password: ${USERPASS}"

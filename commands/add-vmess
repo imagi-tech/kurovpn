@@ -40,7 +40,7 @@ client_json=$(make_vmess_client "$uuid" "$user")
 source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
 
 # Add to Xray config
-xray_add_client "vmess" "$client_json" || { echo "Error: failed to update Xray config."; exit 1; }
+xray_add_client "vmess" "$client_json" || { echo -e "\n  ${RED}[ERROR] Failed to update Xray config.${NC}"; ui_wait_key; exit 1; }
 
 # Add to users DB
 users_add "vmess" "$user" "$exp" "\"uuid\":\"$uuid\""
@@ -90,8 +90,10 @@ echo -e "  ${GREEN}Plaintext Link   :${NC} https://${domain}/sub/${user}.txt"
 ui_qr "$link1" "Scan VMess (TLS) QR Code"
 
 # Telegram notification
-CHATID=$(cat /etc/funny/.chatid 2>/dev/null)
-KEY=$(cat /etc/funny/.keybot 2>/dev/null)
+CHATID=""
+KEY=""
+[[ -f /etc/funny/.chatid ]] && CHATID=$(cat /etc/funny/.chatid)
+[[ -f /etc/funny/.keybot ]] && KEY=$(cat /etc/funny/.keybot)
 if [[ -n "$KEY" && -n "$CHATID" ]]; then
     curl -s --max-time 2 -d "chat_id=$CHATID&text=VMess+$user+created+exp+$exp&parse_mode=html" \
         "https://api.telegram.org/bot$KEY/sendMessage" >/dev/null 2>&1
