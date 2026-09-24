@@ -23,7 +23,12 @@ if [[ -z "$su" ]]; then
     exit 1
 fi
 
-sub_build_user "$su"
+if ! sub_build_user "$su"; then
+    echo -e "\n  ${RED}[ERROR]${NC} No active VPN configurations found for '$su'."
+    echo "  Please create an account first using the protocol menus."
+    ui_wait_key
+    exit 1
+fi
 s_url=$(sub_url "$su")
 
 ui_card_begin "Subscription Details: $su"

@@ -28,7 +28,15 @@ del_l2tp() {
     sed -i "/^\"$user\" l2tpd/d" /etc/ppp/chap-secrets 2>/dev/null
     sed -i "/^$user:\$1\$/d" /etc/ipsec.d/passwd 2>/dev/null
     sed -i "/^### $user/d" /etc/funny/.l2tp 2>/dev/null
-    [[ -f "$USERS_FILE" ]] && { t="${USERS_FILE}.tmp.$$"; jq --arg u "$user" '.l2tp |= map(select(.user != $u))' "$USERS_FILE" > "$t"; mv "$t" "$USERS_FILE"; chmod 600 "$USERS_FILE"; }
+    [[ -f "$USERS_FILE" ]] && {
+        t="${USERS_FILE}.tmp.$$"
+        jq --arg u "$user" '.l2tp |= map(select(.user != $u))' "$USERS_FILE" > "$t"
+        mv "$t" "$USERS_FILE"
+        chmod 600 "$USERS_FILE"
+        source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
+        sub_build_user "$user" 2>/dev/null || true
+        rm -f "/var/www/html/sub/$user" "/var/www/html/sub/$user.txt" 2>/dev/null || true
+    }
     chmod 600 /etc/ppp/chap-secrets /etc/ipsec.d/passwd 2>/dev/null
     echo "  Deleted: $user"
     ui_wait_key

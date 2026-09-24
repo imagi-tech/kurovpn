@@ -43,10 +43,15 @@ del_hy2() {
     read -p "  Delete user '$user'? [y/N]: " confirm
     [[ "$confirm" != "y" && "$confirm" != "Y" ]] && return
 
-    hy_del_user "$user" && {
-        users_del "hysteria2" "$user"
+    if hy_del_user "$user"; then
+        # Also rebuild subscription to remove stale links
+        source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
+        sub_build_user "$user" 2>/dev/null || true
+        rm -f "/var/www/html/sub/$user" "/var/www/html/sub/$user.txt" 2>/dev/null || true
         echo "  User '$user' successfully removed."
-    } || echo "  Failed to remove user."
+    else
+        echo "  Failed to remove user."
+    fi
     ui_wait_key
 }
 
@@ -83,12 +88,12 @@ renew_hy2() {
 status_hy2() {
     clear
     ui_header "Hysteria 2 Status" "Hysteria2 › Status"
-    if systemctl is-active --quiet hysteria 2>/dev/null; then
+    if systemctl is-active --quiet hysteria 2>/dev/null || pgrep -x hysteria >/dev/null 2>&1; then
         ui_kv "Service Status" "${GREEN}Running (Active)${NC}"
     else
         ui_kv "Service Status" "${RED}Stopped (Inactive)${NC}"
     fi
-    ui_kv "Port" "443 (UDP/QUIC)"
+    ui_kv "Ports" "443, 53 (UDP/QUIC)"
     ui_kv "Domain" "$(cat /etc/xray/domain 2>/dev/null || echo unknown)"
     ui_kv "Active Users" "$(jq '.hysteria2 | length' "$USERS_FILE" 2>/dev/null || echo 0)"
     echo ""

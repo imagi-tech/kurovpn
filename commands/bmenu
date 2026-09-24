@@ -33,6 +33,7 @@ case "$opt" in
 
         [[ -d "$tmp/xray" ]] && cp -r "$tmp/xray" /etc/
         [[ -d "$tmp/kurovpn" ]] && cp -r "$tmp/kurovpn" /etc/
+        [[ -d "$tmp/hysteria" ]] && cp -r "$tmp/hysteria" /etc/
         [[ -d "$tmp/funny" ]] && cp -r "$tmp/funny" /etc/
         [[ -d "$tmp/wireguard" ]] && cp -r "$tmp/wireguard" /etc/
         [[ -f "$tmp/chap-secrets" ]] && cp "$tmp/chap-secrets" /etc/ppp/
@@ -41,7 +42,7 @@ case "$opt" in
         [[ -f "$tmp/nginx.conf" ]] && cp "$tmp/nginx.conf" /etc/nginx/
 
         rm -rf "$tmp"
-        systemctl restart xray nginx wg-quick@wg0 ipsec xl2tpd 2>/dev/null
+        systemctl restart xray nginx hysteria wg-quick@wg0 ipsec xl2tpd 2>/dev/null
         echo "  Restore complete."
         ui_wait_key
         ;;

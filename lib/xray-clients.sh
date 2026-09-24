@@ -49,7 +49,7 @@ user_exists() {
     local proto="$1" user="$2"
     local count
     count=$(jq --arg proto "$proto" --arg user "$user" \
-        '.[$proto] | map(select(.user == $user)) | length' "$USERS_FILE" 2>/dev/null || echo 0)
+        '.[$proto] // [] | map(select(.user == $user)) | length' "$USERS_FILE" 2>/dev/null || echo 0)
     [[ "$count" -gt 0 ]]
 }
 
@@ -220,6 +220,8 @@ users_del() {
     if [[ -s "$tmpfile" ]] && jq . "$tmpfile" >/dev/null 2>&1; then
         mv "$tmpfile" "$USERS_FILE"
         chmod 600 "$USERS_FILE"
+        source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
+        sub_build_user "$user" 2>/dev/null || true
     else
         rm -f "$tmpfile"
         return 1

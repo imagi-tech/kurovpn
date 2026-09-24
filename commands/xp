@@ -100,6 +100,7 @@ for proto in vmess vless trojan shadowsocks reality ss2022; do
         fi
         del_from_users "$proto" "$user"
         rm -rf /etc/funny/limit/xray/quota/"$user" /etc/funny/limit/xray/ip/"$user" 2>/dev/null
+        rm -f "/var/www/html/sub/$user" "/var/www/html/sub/$user.txt" 2>/dev/null || true
     done
 done
 
@@ -108,7 +109,8 @@ jq -r --arg now "$NOW" '.hysteria2[]? | select(.exp < $now) | .user' \
     "$USERS_FILE" 2>/dev/null | while read user; do
     [[ -z "$user" ]] && continue
     del_hysteria2_user "$user"
-    del_from_users "hysteria2" "$user"
+    # Remove stale subscription files
+    rm -f "/var/www/html/sub/$user" "/var/www/html/sub/$user.txt" 2>/dev/null || true
 done
 
 # ── Process SSH users ──────────────────────────────────
@@ -121,6 +123,7 @@ while IFS=: read username userexp; do
         userdel --force "$username" 2>/dev/null
         rm -f /etc/funny/limit/ssh/ip/"$username" 2>/dev/null
         del_from_users "ssh" "$username"
+        rm -f "/var/www/html/sub/$username" "/var/www/html/sub/$username.txt" 2>/dev/null || true
     fi
 done < /tmp/explist.$$
 rm -f /tmp/explist.$$
@@ -151,40 +154,10 @@ fi
 # ── Restart ────────────────────────────────────────────
 systemctl restart xray 2>/dev/null
 
-if systemctl is-active --quiet hysteria 2>/dev/null || systemctl is-enabled --quiet hysteria 2>/dev/null; then
-    DOM=$(cat /etc/xray/domain 2>/dev/null || echo localhost)
-    AUTH=""
-    USERPASS=$(jq -r '.hysteria2[-1].password // empty' "$USERS_FILE" 2>/dev/null)
-    if [[ -n "$USERPASS" && "$USERPASS" != "null" ]]; then
-        AUTH="auth:
-  type: password
-  password: ${USERPASS}"
-    else
-        placeholder=$(head -c 24 /dev/urandom 2>/dev/null | base64 -w0 2>/dev/null || openssl rand -base64 24)
-        AUTH="auth:
-  type: password
-  password: ${placeholder}"
-    fi
-    cat > /etc/hysteria/config.yaml << HYPEOF
-server: :443
-protocol: udp
-
-tls:
-  cert: /etc/xray/xray.crt
-  key: /etc/xray/xray.key
-
-${AUTH}
-masquerade:
-  type: proxy
-  proxy:
-    url: https://${DOM}/
-    rewriteHost: true
-
-speedTest: false
-disableUDP: false
-HYPEOF
-    chmod 600 /etc/hysteria/config.yaml
-    systemctl restart hysteria 2>/dev/null
+# ── Regen and restart Hysteria2 if installed ───────────
+if [[ -f /etc/hysteria/config.yaml ]] && (systemctl is-active --quiet hysteria 2>/dev/null || pgrep -x hysteria >/dev/null 2>&1); then
+    source /usr/lib/kurovpn/hysteria-clients.sh 2>/dev/null || true
+    hy_regen 2>/dev/null || true
 fi
 
 chmod 600 /etc/ppp/chap-secrets /etc/ipsec.d/passwd "$USERS_FILE" 2>/dev/null

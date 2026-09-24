@@ -14,6 +14,7 @@ mkdir -p "$TMP_DIR" /root/backup
 # Copy config files
 cp -r /etc/xray "$TMP_DIR/" 2>/dev/null
 cp -r /etc/kurovpn "$TMP_DIR/" 2>/dev/null
+cp -r /etc/hysteria "$TMP_DIR/" 2>/dev/null
 cp -r /etc/funny "$TMP_DIR/" 2>/dev/null
 cp -r /etc/noobzvpns "$TMP_DIR/" 2>/dev/null
 cp -r /etc/wireguard "$TMP_DIR/" 2>/dev/null

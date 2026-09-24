@@ -45,6 +45,8 @@ if [[ ! -f "$BOT_DEST" ]]; then
         cp "$SCRIPT_DIR/../Plugin/bot.py" "$BOT_DEST"
     elif [[ -f "/root/kurovpn/Plugin/bot.py" ]]; then
         cp "/root/kurovpn/Plugin/bot.py" "$BOT_DEST"
+    elif [[ -f "/home/azureuser/vpn_script/Plugin/bot.py" ]]; then
+        cp "/home/azureuser/vpn_script/Plugin/bot.py" "$BOT_DEST"
     else
         echo "  ERROR: bot.py not found. Re-run install.sh to deploy it."
         read -n1 -s -r -p "  Press any key..."

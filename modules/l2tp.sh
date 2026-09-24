@@ -40,11 +40,6 @@ install_l2tp() {
         libcurl4-nss-dev flex bison gcc make libnss3-tools \
         libevent-dev ppp libsystemd-dev 2>/dev/null || true
 
-    # pptpd was dropped in Ubuntu 24.04+ and Debian 12+; attempt install separately
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-        -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
-        pptpd 2>/dev/null || true
-
     install_libreswan
 
     local l2tp_net="192.168.42.0/24"
@@ -133,38 +128,6 @@ connect-delay 5000
 ms-dns 8.8.8.8
 ms-dns 8.8.4.4
 EOF
-
-    # PPTP (if supported on distro)
-    if command -v pptpd &>/dev/null || [[ -f /usr/sbin/pptpd ]]; then
-        cat > /etc/pptpd.conf << EOF
-option /etc/ppp/options.pptpd
-logwtmp
-localip 192.168.41.1
-remoteip 192.168.41.10-100
-EOF
-
-        cat > /etc/ppp/options.pptpd << 'EOF'
-name pptpd
-refuse-pap
-refuse-chap
-refuse-mschap
-require-mschap-v2
-require-mppe-128
-ms-dns 8.8.8.8
-ms-dns 8.8.4.4
-proxyarp
-lock
-nobsdcomp
-novj
-novjccomp
-nologfd
-EOF
-        svc_enable pptpd 2>/dev/null || true
-        svc_restart pptpd 2>/dev/null || true
-        log_info "PPTP installed (use add-l2tp to create more users)"
-    else
-        log_info "PPTP skipped (package unavailable on this distribution)"
-    fi
 
     # Create default L2TP user
     local pass_enc=$(openssl passwd -1 "$L2TP_PASS")

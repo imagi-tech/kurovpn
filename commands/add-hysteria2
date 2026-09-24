@@ -41,26 +41,29 @@ hy_add_user "$user" "$password" "$exp" || { echo -e "\n  ${RED}[ERROR] Failed to
 # Build subscription immediately
 sub_build_user "$user" 2>/dev/null || true
 
-link="hysteria2://${user}:${password}@${domain}:443?insecure=0&sni=${domain}#${user}-Hysteria2"
+link="hy2://${user}:${password}@${domain}:443?insecure=1&sni=${domain}#${user}-Hy2"
+link_dns="hy2://${user}:${password}@${domain}:53?insecure=1&sni=${domain}#${user}-Hy2-53"
 
 clear
 ui_card_begin "Hysteria2 Account"
-ui_kv "Username"     "${user}"
-ui_kv "Password"     "${password}"
-ui_kv "Host/SNI"     "${domain}"
-ui_kv "Port"         "443 (UDP/QUIC)"
-ui_kv "Expired"      "${exp}"
-ui_kv "Subscription" "https://${domain}/sub/${user}"
+ui_kv "Username"         "${user}"
+ui_kv "Password"         "${password}"
+ui_kv "Host/SNI"         "${domain}"
+ui_kv "Port Standard"    "443 (UDP/QUIC)"
+ui_kv "Port DNS Bypass"  "53 (UDP/QUIC)"
+ui_kv "Expired"          "${exp}"
+ui_kv "Subscription"     "https://${domain}/sub/${user}"
 ui_card_end
 
-echo -e "\n  ${YELLOW}─── Client Import Link (Copy-Paste to Happ/v2rayN) ───────────${NC}"
+echo -e "\n  ${YELLOW}─── Client Import Links (Copy-Paste to Happ/v2rayN/NekoBox) ───${NC}"
 echo "$link"
+echo "$link_dns"
 echo -e "  ${YELLOW}─────────────────────────────────────────────────────────────${NC}\n"
 
 echo -e "  ${GREEN}Subscription Link:${NC} https://${domain}/sub/${user}"
 echo -e "  ${GREEN}Plaintext Link   :${NC} https://${domain}/sub/${user}.txt"
 
-ui_qr "$link" "Scan Hysteria2 QR Code"
+ui_qr "$link" "Scan Hysteria2 (Port 443) QR Code"
 
 # Telegram notification
 CHATID=""

@@ -54,7 +54,6 @@ verify_install() {
         "wg-quick@wg0"
         "xl2tpd"
         "ipsec"
-        "pptpd"
         "noobzvpns"
         "badvpn"
         "hysteria"
@@ -66,7 +65,7 @@ verify_install() {
     local ok=0 fail=0
     for svc in "${svcs[@]}"; do
         # If optional service unit does not exist on this distro, skip silently
-        if [[ "$svc" =~ ^(pptpd|noobzvpns)$ ]] && ! systemctl list-unit-files "$svc.service" &>/dev/null; then
+        if [[ "$svc" == "noobzvpns" ]] && ! systemctl list-unit-files "$svc.service" &>/dev/null; then
             continue
         fi
         if svc_active "$svc"; then
@@ -106,7 +105,7 @@ install_commands() {
         "Menu-WGF" "nmenu" "lmenu" "bmenu" "botmenu" "dm-menu"
         "addssh" "add-l2tp" "add-ssws" "add-trojan" "add-vless" "add-vmess"
         "add-reality" "add-ss2022" "add-hysteria2"
-        "backup" "xp" "bbr" "sub" "kurovpn-verify"
+        "backup" "xp" "bbr" "sub" "kurovpn-verify" "kurovpn-update"
     )
 
     for cmd in "${cmd_list[@]}"; do
@@ -118,29 +117,11 @@ install_commands() {
         fi
     done
 
-    # Install UI library
-    if [[ -f "$SCRIPT_DIR/lib/ui.sh" ]]; then
-        cp "$SCRIPT_DIR/lib/ui.sh" "/usr/lib/kurovpn/ui.sh"
-        chmod 644 "/usr/lib/kurovpn/ui.sh"
-    fi
-
-    # Install Xray client management library
-    if [[ -f "$SCRIPT_DIR/lib/xray-clients.sh" ]]; then
-        cp "$SCRIPT_DIR/lib/xray-clients.sh" "/usr/lib/kurovpn/xray-clients.sh"
-        chmod 644 "/usr/lib/kurovpn/xray-clients.sh"
-    fi
-
-    # Install Hysteria2 client management library
-    if [[ -f "$SCRIPT_DIR/lib/hysteria-clients.sh" ]]; then
-        cp "$SCRIPT_DIR/lib/hysteria-clients.sh" "/usr/lib/kurovpn/hysteria-clients.sh"
-        chmod 644 "/usr/lib/kurovpn/hysteria-clients.sh"
-    fi
-
-    # Install subscription library
-    if [[ -f "$SCRIPT_DIR/lib/subscription.sh" ]]; then
-        cp "$SCRIPT_DIR/lib/subscription.sh" "/usr/lib/kurovpn/subscription.sh"
-        chmod 644 "/usr/lib/kurovpn/subscription.sh"
-    fi
+    # Install all library files
+    for lib in "$SCRIPT_DIR"/lib/*.sh; do
+        [[ -f "$lib" ]] && cp "$lib" "/usr/lib/kurovpn/"
+    done
+    chmod 644 /usr/lib/kurovpn/*.sh 2>/dev/null || true
 
     # Install BBR module library
     if [[ -f "$SCRIPT_DIR/modules/bbr.sh" ]]; then

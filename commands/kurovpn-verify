@@ -38,14 +38,13 @@ echo -e "${YELLOW}[ Services ]${NC}"
 check "nginx is running"    systemctl is-active --quiet nginx
 check "xray is running"     systemctl is-active --quiet xray
 check "dropbear is running" systemctl is-active --quiet dropbear
-check "ssh is running"      systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd
+check "ssh is running"      'systemctl is-active --quiet ssh.socket 2>/dev/null || systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd'
 check_warn "edu WS proxy"   systemctl is-active --quiet edu
 check_warn "wg-quick@wg0"   systemctl is-active --quiet "wg-quick@wg0"
 check_warn "xl2tpd"         systemctl is-active --quiet xl2tpd
 check_warn "ipsec"          systemctl is-active --quiet ipsec
-check_warn "pptpd"          systemctl is-active --quiet pptpd
 check_warn "badvpn"         systemctl is-active --quiet badvpn
-check_warn "hysteria"      systemctl is-active --quiet hysteria
+check_warn "hysteria"      'systemctl is-active --quiet hysteria 2>/dev/null || pgrep -x hysteria >/dev/null 2>&1'
 echo ""
 
 echo -e "${YELLOW}[ Configuration ]${NC}"
@@ -70,16 +69,19 @@ check_warn "port 2048 (wg)"      'ss -ulnp 2>/dev/null | grep -q ":2048"'
 check_warn "port 8443 (reality)" 'ss -tlnp 2>/dev/null | grep -q ":8443.*xray"'
 check_warn "port 10010 (ss2022)" 'ss -tlnp 2>/dev/null | grep -q ":10010.*xray"'
 check_warn "port 443/udp (hysteria)" 'ss -ulnp 2>/dev/null | grep -q ":443.*hysteria"'
+check_warn "port 53/udp (hysteria red)" 'iptables -t nat -S PREROUTING 2>/dev/null | grep -q "dport 53 -j REDIRECT --to-ports 443"'
 echo ""
 
 echo -e "${YELLOW}[ Management ]${NC}"
 check_warn "menu command"   'test -x /usr/bin/menu'
+check_warn "update command" 'test -x /usr/bin/kurovpn-update'
 check_warn "xp command"     'test -x /usr/bin/xp'
 check_warn "backup command" 'test -x /usr/bin/backup'
 check_warn "bbr command"    'test -x /usr/bin/bbr'
 check_warn "sub command"    'test -x /usr/bin/sub'
 check_warn "qrencode CLI"   'command -v qrencode &>/dev/null'
 check_warn "sub endpoint"   'test -d /var/www/html/sub'
+check_warn "ssh banner"     'grep -Eq "^Banner /etc/issue.net" /etc/ssh/sshd_config /etc/ssh/sshd_config.d/* 2>/dev/null'
 check "cron installed"      'test -f /etc/cron.d/kurovpn'
 check_warn "uninstall cmd"  'test -x /usr/bin/uninstall'
 echo ""

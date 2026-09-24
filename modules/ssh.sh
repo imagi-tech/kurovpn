@@ -10,12 +10,26 @@ source "$SCRIPT_DIR/lib/common.sh"
 install_ssh() {
     log_step "Configuring SSH & Dropbear"
 
-    # ── SSH: ensure port 22 and add port 3303 ──────────
-    sed -i 's/#Port 22/Port 22/' /etc/ssh/sshd_config
+    # ── SSH: ensure port 22, port 3303, and Banner ─────
+    sed -i 's/#Port 22/Port 22/' /etc/ssh/sshd_config 2>/dev/null || true
+    sed -i 's/#Banner none/Banner \/etc\/issue.net/' /etc/ssh/sshd_config 2>/dev/null || true
     ensure_line /etc/ssh/sshd_config "Port 22"
     ensure_line /etc/ssh/sshd_config "Port 3303"
+    ensure_line /etc/ssh/sshd_config "Banner /etc/issue.net"
 
-    svc_restart sshd 2>/dev/null || svc_restart ssh
+    if [[ -d /etc/ssh/sshd_config.d ]]; then
+        cat > /etc/ssh/sshd_config.d/50-kurovpn.conf << 'SSH_DROPIN'
+Port 22
+Port 3303
+Banner /etc/issue.net
+ClientAliveInterval 30
+ClientAliveCountMax 3
+SSH_DROPIN
+        chmod 644 /etc/ssh/sshd_config.d/50-kurovpn.conf 2>/dev/null || true
+    fi
+
+    sshd -t 2>/dev/null || true
+    svc_restart sshd 2>/dev/null || svc_restart ssh 2>/dev/null || true
 
     # ── Dropbear ───────────────────────────────────────
     log_info "Configuring Dropbear"

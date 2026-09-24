@@ -77,9 +77,9 @@ _card_row "${GREEN} 4)${NC} WireGuard VPN           ${GREEN} 9)${NC} Bot & Backu
 _card_row "${GREEN} 5)${NC} L2TP / IPsec VPN       ${GREEN}10)${NC} Domain & Cert"
 ui_card_end
 
-echo -e "  ${GREEN}V)${NC} Run Full Diagnostics (Verify)   ${RED}X)${NC} Exit"
+echo -e "  ${CYAN}U)${NC} Update KUROVPN   ${GREEN}V)${NC} Full Diagnostics   ${RED}X)${NC} Exit"
 echo ""
-read -p "  Select Option [1-10 / V / X]: " opt
+read -p "  Select Option [1-10 / U / V / X]: " opt
 
 case "$opt" in
     1) menu-ssh ;;
@@ -87,24 +87,14 @@ case "$opt" in
     3) menu-hy2 ;;
     4) Menu-WGF ;;
     5) lmenu ;;
-    6)
-        clear
-        ui_header "Subscriptions" "Main › Subscriptions"
-        read -p "  Enter username to view subscription link: " su
-        if [[ -n "$su" ]]; then
-            source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
-            sub_url_str=$(sub_url "$su")
-            echo ""
-            ui_kv "User" "$su"
-            ui_kv "Subscription" "$sub_url_str"
-            ui_qr "$sub_url_str" "Subscription QR Code"
-        fi
-        ui_wait_key
-        ;;
+    6) sub ;;
     7) bbr ;;
     8) menu-set ;;
     9) bmenu ;;
     10) dm-menu ;;
+    U|u)
+        kurovpn-update
+        ;;
     V|v)
         clear
         kurovpn-verify || /usr/bin/kurovpn-verify || true

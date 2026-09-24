@@ -24,20 +24,97 @@ echo ""
 ui_footer
 read -p "  Select: " opt
 
+do_issue_or_renew_cert() {
+    local target_dom="$1"
+    local is_force="${2:-true}"
+
+    echo ""
+    echo -e "  ${YELLOW}Requesting TLS certificate for ${WHITE}$target_dom${NC}..."
+
+    # Ensure HOME and config paths are pinned to /root/.acme.sh
+    export HOME=/root
+    export LE_CONFIG_HOME="/root/.acme.sh"
+    local acme_bin="/root/.acme.sh/acme.sh"
+    local acme_opts="--home /root/.acme.sh --config-home /root/.acme.sh"
+
+    if [[ ! -x "$acme_bin" ]]; then
+        echo "  acme.sh not found in /root/.acme.sh. Installing..."
+        curl -sL https://get.acme.sh | HOME=/root bash 2>&1 | grep -v "^#" || true
+        $acme_bin $acme_opts --set-default-ca --server letsencrypt 2>/dev/null || true
+    fi
+
+    # Backup existing certificates
+    [[ -s /etc/xray/xray.crt ]] && cp -p /etc/xray/xray.crt /etc/xray/xray.crt.bak 2>/dev/null || true
+    [[ -s /etc/xray/xray.key ]] && cp -p /etc/xray/xray.key /etc/xray/xray.key.bak 2>/dev/null || true
+
+    systemctl stop nginx 2>/dev/null || true
+
+    local force_flag=""
+    [[ "$is_force" == "true" ]] && force_flag="--force"
+
+    local issue_success=false
+    if $acme_bin $acme_opts --issue -d "$target_dom" --standalone -k ec-256 --server letsencrypt $force_flag 2>&1; then
+        if $acme_bin $acme_opts --installcert -d "$target_dom" \
+            --fullchainpath /etc/xray/xray.crt \
+            --keypath /etc/xray/xray.key \
+            --ecc 2>&1; then
+            if [[ -s /etc/xray/xray.crt && -s /etc/xray/xray.key ]]; then
+                issue_success=true
+            fi
+        fi
+    fi
+
+    if [[ "$issue_success" == "true" ]]; then
+        echo -e "  ${GREEN}[SUCCESS]${NC} TLS Certificate installed successfully."
+        chmod 644 /etc/xray/xray.crt 2>/dev/null || true
+        chmod 600 /etc/xray/xray.key 2>/dev/null || true
+    else
+        echo -e "  ${RED}[ERROR]${NC} ACME certificate request failed."
+        if [[ -s /etc/xray/xray.crt.bak && -s /etc/xray/xray.key.bak ]]; then
+            echo -e "  ${YELLOW}[INFO]${NC} Restoring previous working certificate..."
+            cp -p /etc/xray/xray.crt.bak /etc/xray/xray.crt
+            cp -p /etc/xray/xray.key.bak /etc/xray/xray.key
+        elif [[ ! -s /etc/xray/xray.crt || ! -s /etc/xray/xray.key ]]; then
+            echo -e "  ${YELLOW}[INFO]${NC} Generating fallback self-signed certificate..."
+            openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) \
+                -keyout /etc/xray/xray.key -out /etc/xray/xray.crt \
+                -days 365 -subj "/CN=$target_dom" 2>/dev/null || true
+            chmod 644 /etc/xray/xray.crt 2>/dev/null || true
+            chmod 600 /etc/xray/xray.key 2>/dev/null || true
+        fi
+    fi
+
+    rm -f /etc/xray/xray.crt.bak /etc/xray/xray.key.bak 2>/dev/null || true
+
+    systemctl restart nginx 2>/dev/null || systemctl start nginx 2>/dev/null || true
+    systemctl restart xray 2>/dev/null || true
+    systemctl restart hysteria 2>/dev/null || true
+
+    if systemctl is-active --quiet nginx 2>/dev/null; then
+        echo -e "  ${GREEN}●${NC} Nginx is active and running."
+    else
+        echo -e "  ${RED}○${NC} Warning: Nginx failed to start — check 'systemctl status nginx'."
+    fi
+}
+
 case "$opt" in
     1)
         read -p "  New domain: " newdom
-        [[ -n "$newdom" ]] && { echo "$newdom" > /etc/xray/domain; echo "  Domain set → $newdom"; }
+        if [[ -n "$newdom" ]]; then
+            echo "$newdom" > /etc/xray/domain
+            echo -e "  Domain set → ${CYAN}$newdom${NC}"
+            read -p "  Issue TLS certificate for $newdom now? [Y/n]: " do_cert
+            do_cert=${do_cert:-Y}
+            if [[ "$do_cert" == "y" || "$do_cert" == "Y" ]]; then
+                do_issue_or_renew_cert "$newdom" "true"
+            fi
+        fi
         sleep 1
         ;;
     2)
         dom=$(cat /etc/xray/domain 2>/dev/null)
         [[ -z "$dom" ]] && { echo "  No domain set."; sleep 2; continue; }
-        echo "  Renewing certificate for $dom..."
-        systemctl stop nginx 2>/dev/null
-        /root/.acme.sh/acme.sh --issue -d "$dom" --standalone -k ec-256 2>&1
-        /root/.acme.sh/acme.sh --installcert -d "$dom" --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
-        systemctl restart nginx
+        do_issue_or_renew_cert "$dom" "true"
         echo "  Done."
         ui_wait_key
         ;;
@@ -58,10 +135,7 @@ case "$opt" in
         fi
         echo "$DNS" > /etc/xray/domain
         echo "  Domain set: $DNS"
-        systemctl stop nginx 2>/dev/null
-        /root/.acme.sh/acme.sh --issue -d "$DNS" --standalone -k ec-256
-        /root/.acme.sh/acme.sh --installcert -d "$DNS" --fullchainpath /etc/xray/xray.crt --keypath /etc/xray/xray.key --ecc
-        systemctl restart nginx
+        do_issue_or_renew_cert "$DNS" "true"
         echo "  Done."
         ui_wait_key
         ;;

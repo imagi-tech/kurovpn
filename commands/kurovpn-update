@@ -1,0 +1,116 @@
+#!/bin/bash
+#
+#  KUROVPN -- VPN Auto-Installer & Manager
+#  https://github.com/imagi-tech/kurovpn
+#
+#  kurovpn-update — In-place script & library updater from GitHub
+
+source /usr/lib/kurovpn/ui.sh 2>/dev/null || source /home/azureuser/vpn_script/lib/ui.sh 2>/dev/null || true
+ui_require_root
+
+REPO_URL="https://github.com/imagi-tech/kurovpn/archive/refs/heads/main.tar.gz"
+BRANCH="main"
+
+clear
+ui_header "KUROVPN In-Place Updater" "System › Update"
+
+echo -e "  ${WHITE}This will update management commands, libraries, and TUI scripts.${NC}"
+echo -e "  ${GREEN}All user databases, TLS certificates, and domains will be strictly preserved.${NC}\n"
+
+read -p "  Proceed with update? [Y/n]: " confirm
+confirm=${confirm:-Y}
+[[ "$confirm" != "y" && "$confirm" != "Y" ]] && { echo -e "\n  Update aborted."; sleep 1; exit 0; }
+
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+echo -e "\n  ${YELLOW}› Downloading latest release from GitHub (${BRANCH})...${NC}"
+if ! curl -sL --connect-timeout 10 --max-time 60 "$REPO_URL" -o "$TMP_DIR/kurovpn.tar.gz"; then
+    echo -e "  ${RED}[ERROR] Failed to download update package from GitHub.${NC}"
+    ui_wait_key
+    exit 1
+fi
+
+echo -e "  ${YELLOW}› Extracting package...${NC}"
+if ! tar -xzf "$TMP_DIR/kurovpn.tar.gz" -C "$TMP_DIR"; then
+    echo -e "  ${RED}[ERROR] Failed to extract archive.${NC}"
+    ui_wait_key
+    exit 1
+fi
+
+SRC_DIR=$(find "$TMP_DIR" -maxdepth 1 -mindepth 1 -type d | head -1)
+if [[ -z "$SRC_DIR" || ! -d "$SRC_DIR/commands" ]]; then
+    echo -e "  ${RED}[ERROR] Invalid repository structure in update archive.${NC}"
+    ui_wait_key
+    exit 1
+fi
+
+echo -e "  ${YELLOW}› Updating management libraries in /usr/lib/kurovpn/...${NC}"
+mkdir -p /usr/lib/kurovpn
+for lib in "$SRC_DIR"/lib/*.sh; do
+    [[ -f "$lib" ]] && cp "$lib" /usr/lib/kurovpn/
+done
+chmod 644 /usr/lib/kurovpn/*.sh 2>/dev/null || true
+
+# Update BBR library if present
+if [[ -f "$SRC_DIR/modules/bbr.sh" ]]; then
+    cp "$SRC_DIR/modules/bbr.sh" /usr/lib/kurovpn/bbr.sh
+    chmod 644 /usr/lib/kurovpn/bbr.sh 2>/dev/null || true
+fi
+
+echo -e "  ${YELLOW}› Updating management commands in /usr/bin/...${NC}"
+for cmd in "$SRC_DIR"/commands/*; do
+    if [[ -f "$cmd" ]]; then
+        cmd_name=$(basename "$cmd")
+        cp "$cmd" "/usr/bin/$cmd_name"
+        chmod +x "/usr/bin/$cmd_name"
+    fi
+done
+
+# Ensure uninstall script is current
+if [[ -f "$SRC_DIR/uninstall.sh" ]]; then
+    cp "$SRC_DIR/uninstall.sh" /usr/bin/uninstall
+    chmod +x /usr/bin/uninstall
+fi
+
+# Update bot.py if installed
+if [[ -f "$SRC_DIR/Plugin/bot.py" && -d /opt/kurovpn ]]; then
+    cp "$SRC_DIR/Plugin/bot.py" /opt/kurovpn/bot.py
+    chmod +x /opt/kurovpn/bot.py
+fi
+
+echo -e "  ${YELLOW}› Reloading system services...${NC}"
+systemctl daemon-reload 2>/dev/null || true
+
+# Graceful restart of active VPN services
+for svc in nginx xray dropbear; do
+    if systemctl is-active --quiet "$svc" 2>/dev/null; then
+        systemctl restart "$svc" 2>/dev/null || true
+    fi
+done
+
+# SSH: Ubuntu 24.04 uses ssh.socket
+if systemctl is-active --quiet ssh.socket 2>/dev/null; then
+    systemctl restart ssh.socket 2>/dev/null || true
+elif systemctl is-active --quiet sshd 2>/dev/null || systemctl is-active --quiet ssh 2>/dev/null; then
+    systemctl restart sshd 2>/dev/null || systemctl restart ssh 2>/dev/null || true
+fi
+
+# Hysteria2: may run standalone or via systemd
+if systemctl is-active --quiet hysteria 2>/dev/null; then
+    systemctl restart hysteria 2>/dev/null || true
+elif pgrep -x hysteria >/dev/null 2>&1; then
+    source /usr/lib/kurovpn/hysteria-clients.sh 2>/dev/null || true
+    hy_regen 2>/dev/null || true
+fi
+
+echo -e "\n  ${GREEN}[SUCCESS] KUROVPN has been successfully updated to the latest version!${NC}\n"
+
+read -p "  Run diagnostics now to verify services? [Y/n]: " run_diag
+run_diag=${run_diag:-Y}
+if [[ "$run_diag" == "y" || "$run_diag" == "Y" ]]; then
+    clear
+    /usr/bin/kurovpn-verify || true
+fi
+
+ui_wait_key

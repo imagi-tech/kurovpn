@@ -92,7 +92,15 @@ EOF
         sed -i "/^### $name /,/^$/d" /etc/wireguard/wg0.conf 2>/dev/null
         rm -f /etc/wireguard/clients/${name}.conf
         sed -i "/^### $name/d" /etc/funny/.wg 2>/dev/null
-        [[ -f "$USERS_FILE" ]] && { t="${USERS_FILE}.tmp.$$"; jq --arg u "$name" '.wireguard |= map(select(.user != $u))' "$USERS_FILE" > "$t"; mv "$t" "$USERS_FILE"; chmod 600 "$USERS_FILE"; }
+        [[ -f "$USERS_FILE" ]] && {
+            t="${USERS_FILE}.tmp.$$"
+            jq --arg u "$name" '.wireguard |= map(select(.user != $u))' "$USERS_FILE" > "$t"
+            mv "$t" "$USERS_FILE"
+            chmod 600 "$USERS_FILE"
+            source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
+            sub_build_user "$name" 2>/dev/null || true
+            rm -f "/var/www/html/sub/$name" "/var/www/html/sub/$name.txt" 2>/dev/null || true
+        }
         systemctl restart wg-quick@wg0 2>/dev/null
         echo "  Deleted: $name"
         ui_wait_key

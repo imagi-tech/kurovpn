@@ -54,7 +54,7 @@ ui_kv "Password"     "${password}"
 ui_kv "Expired"      "${exp}"
 ui_kv "Port TLS"     "443"
 ui_kv "Network"      "WS, gRPC"
-ui_kv "Path WS"      "/trojan"
+ui_kv "Path WS"      "/t"
 ui_kv "Subscription" "https://${domain}/sub/${user}"
 ui_card_end
 

@@ -43,6 +43,7 @@ install_deps() {
         binutils
         qrencode
         vnstat
+        sshpass
     )
 
     # Install ruby's lolcat gem

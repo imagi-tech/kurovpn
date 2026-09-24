@@ -65,10 +65,15 @@ hy_add_user() {
 
     local tmpfile="${USERS_FILE}.tmp.$$"
     jq --arg user "$user" --arg pass "$password" --arg exp "$exp" --arg created "$today" \
-        '.hysteria2 += [{"user": $user, "password": $pass, "exp": $exp, "created": $created}]' \
-        "$USERS_FILE" > "$tmpfile"
-    mv "$tmpfile" "$USERS_FILE"
-    chmod 600 "$USERS_FILE"
+        '(.hysteria2 //= []) | .hysteria2 += [{"user": $user, "password": $pass, "exp": $exp, "created": $created}]' \
+        "$USERS_FILE" > "$tmpfile" 2>/dev/null
+    if [[ -s "$tmpfile" ]] && jq . "$tmpfile" >/dev/null 2>&1; then
+        mv "$tmpfile" "$USERS_FILE"
+        chmod 600 "$USERS_FILE"
+    else
+        rm -f "$tmpfile"
+        return 1
+    fi
 
     hy_regen
 }
@@ -77,10 +82,18 @@ hy_del_user() {
     local user="$1"
     local tmpfile="${USERS_FILE}.tmp.$$"
     jq --arg user "$user" \
-        '.hysteria2 |= map(select(.user != $user))' \
-        "$USERS_FILE" > "$tmpfile"
-    mv "$tmpfile" "$USERS_FILE"
-    chmod 600 "$USERS_FILE"
+        '(.hysteria2 //= []) | .hysteria2 |= map(select(.user != $user))' \
+        "$USERS_FILE" > "$tmpfile" 2>/dev/null
+    if [[ -s "$tmpfile" ]] && jq . "$tmpfile" >/dev/null 2>&1; then
+        mv "$tmpfile" "$USERS_FILE"
+        chmod 600 "$USERS_FILE"
+        source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
+        sub_build_user "$user" 2>/dev/null || true
+        rm -f "/var/www/html/sub/$user" "/var/www/html/sub/$user.txt" 2>/dev/null || true
+    else
+        rm -f "$tmpfile"
+        return 1
+    fi
 
     hy_regen
 }
@@ -89,6 +102,6 @@ hy_user_exists() {
     local user="$1"
     local count
     count=$(jq --arg user "$user" \
-        '.hysteria2 | map(select(.user == $user)) | length' "$USERS_FILE")
+        '.hysteria2 // [] | map(select(.user == $user)) | length' "$USERS_FILE" 2>/dev/null || echo 0)
     [[ "$count" -gt 0 ]]
 }

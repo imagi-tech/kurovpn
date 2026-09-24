@@ -77,7 +77,7 @@ rm -f /usr/bin/bmenu /usr/bin/botmenu /usr/bin/dm-menu
 rm -f /usr/bin/addssh /usr/bin/add-l2tp /usr/bin/add-ssws
 rm -f /usr/bin/add-trojan /usr/bin/add-vless /usr/bin/add-vmess
 rm -f /usr/bin/add-reality /usr/bin/add-ss2022 /usr/bin/add-hysteria2
-rm -f /usr/bin/backup /usr/bin/xp /usr/bin/bbr /usr/bin/sub /usr/bin/kurovpn-verify
+rm -f /usr/bin/backup /usr/bin/xp /usr/bin/bbr /usr/bin/sub /usr/bin/kurovpn-verify /usr/bin/kurovpn-update
 rm -f /usr/bin/uninstall
 
 # ── Remove library directory ───────────────────────────
@@ -109,9 +109,10 @@ rm -f /etc/cron.d/kurovpn
 
 # ── Restore SSH to default (port 22 only) ──────────────
 info "Restoring SSH to default..."
+rm -f /etc/ssh/sshd_config.d/50-kurovpn.conf 2>/dev/null || true
 sed -i '/^Port 3303$/d' /etc/ssh/sshd_config 2>/dev/null || true
 sed -i 's/^#Port 22/Port 22/' /etc/ssh/sshd_config 2>/dev/null || true
-systemctl restart sshd 2>/dev/null || systemctl restart ssh
+systemctl restart ssh.socket 2>/dev/null || systemctl restart sshd 2>/dev/null || systemctl restart ssh 2>/dev/null || true
 
 # ── Remove dropbear completely ─────────────────────────
 info "Removing Dropbear..."

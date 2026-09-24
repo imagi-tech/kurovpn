@@ -58,10 +58,11 @@ sub_build_user() {
     local reality_uuid
     reality_uuid=$(jq -r --arg u "$user" '.reality[]? | select(.user == $u) | .uuid' "$USERS_FILE" 2>/dev/null | head -1)
     if [[ -n "$reality_uuid" && "$reality_uuid" != "null" ]]; then
-        local pbk shortid
-        pbk=$(cat /etc/xray/reality-pub 2>/dev/null || echo "")
-        read -r _ shortid < /etc/xray/reality-pub 2>/dev/null || shortid=""
-        links+=("vless://${reality_uuid}@${domain}:8443?security=reality&encryption=none&pbk=${pbk}&sid=${shortid}&headerType=none&type=tcp&flow=xtls-rprx-vision&sni=${domain}&fp=chrome#${user}-VLess-REALITY")
+        local pbk="" shortid=""
+        read -r pbk shortid < /etc/xray/reality-pub 2>/dev/null || true
+        if [[ -n "$pbk" && -n "$shortid" ]]; then
+            links+=("vless://${reality_uuid}@${domain}:8443?security=reality&encryption=none&pbk=${pbk}&sid=${shortid}&headerType=none&type=tcp&flow=xtls-rprx-vision&sni=${domain}&fp=chrome#${user}-VLess-REALITY")
+        fi
     fi
 
     # 4. Trojan
@@ -90,13 +91,14 @@ sub_build_user() {
     local hy2_pass
     hy2_pass=$(jq -r --arg u "$user" '.hysteria2[]? | select(.user == $u) | .password // .auth' "$USERS_FILE" 2>/dev/null | head -1)
     if [[ -n "$hy2_pass" && "$hy2_pass" != "null" ]]; then
-        links+=("hysteria2://${user}:${hy2_pass}@${domain}:443?sni=${domain}&insecure=0#${user}-Hysteria2")
+        links+=("hy2://${user}:${hy2_pass}@${domain}:443?insecure=1&sni=${domain}#${user}-Hy2")
+        links+=("hy2://${user}:${hy2_pass}@${domain}:53?insecure=1&sni=${domain}#${user}-Hy2-53")
     fi
 
     # If no links generated, clean up and exit
     if [[ ${#links[@]} -eq 0 ]]; then
         rm -f "$SUB_DIR/$user" "$SUB_DIR/$user.txt" 2>/dev/null || true
-        return 0
+        return 1
     fi
 
     # Write raw plain text file

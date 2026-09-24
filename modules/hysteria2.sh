@@ -50,43 +50,10 @@ install_hysteria2() {
 regenerate_hysteria_config() {
     local domain="$1"
     log_info "Regenerating Hysteria2 config"
-
-    local auth_yaml=""
-    local users
-    users=$(jq -r '.hysteria2[-1].password // empty' /etc/kurovpn/users.json 2>/dev/null)
-
-    if [[ -n "$users" && "$users" != "null" ]]; then
-        auth_yaml="auth:
-  type: password
-  password: ${users}"
-    else
-        local placeholder
-        placeholder=$(head -c 24 /dev/urandom 2>/dev/null | base64 -w0 2>/dev/null || openssl rand -base64 24)
-        auth_yaml="auth:
-  type: password
-  password: ${placeholder}"
+    source "$SCRIPT_DIR/lib/hysteria-clients.sh" 2>/dev/null || source /usr/lib/kurovpn/hysteria-clients.sh 2>/dev/null || true
+    if command -v hy_regen &>/dev/null; then
+        hy_regen
     fi
-
-    cat > "$HYSTERIA_CONFIG" << HYCONF
-server: :443
-protocol: udp
-
-tls:
-  cert: /etc/xray/xray.crt
-  key: /etc/xray/xray.key
-
-${auth_yaml}
-masquerade:
-  type: proxy
-  proxy:
-    url: https://${domain}/
-    rewriteHost: true
-
-speedTest: false
-disableUDP: false
-HYCONF
-
-    chmod 600 "$HYSTERIA_CONFIG"
     log_info "Hysteria2 config written"
 }
 
@@ -113,13 +80,23 @@ NoNewPrivileges=true
 WantedBy=multi-user.target
 HYUNIT
 
+    # Enable UDP port 53 redirection to Hysteria on port 443 (allows connections on both 443 and 53)
+    iptables -t nat -C PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 443 2>/dev/null || \
+    iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 443 2>/dev/null || true
+
+    iptables -t nat -C OUTPUT -p udp -o lo --dport 53 -j REDIRECT --to-ports 443 2>/dev/null || \
+    iptables -t nat -A OUTPUT -p udp -o lo --dport 53 -j REDIRECT --to-ports 443 2>/dev/null || true
+
+    ip6tables -t nat -C PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 443 2>/dev/null || \
+    ip6tables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 443 2>/dev/null || true
+
     systemctl daemon-reload
     svc_enable hysteria
     svc_restart hysteria
 
     sleep 2
     if svc_active hysteria; then
-        log_info "Hysteria2 service running"
+        log_info "Hysteria2 service running (ports: 443, 53 UDP)"
     else
         log_warn "Hysteria2 service may have issues — check 'systemctl status hysteria'"
     fi

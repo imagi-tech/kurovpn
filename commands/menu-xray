@@ -22,7 +22,7 @@ list_users() {
 
     local found=0
     if [[ -f "$USERS_FILE" ]]; then
-        for p in vmess vless reality trojan ss2022; do
+        for p in vmess vless reality trojan ss2022 shadowsocks; do
             while read u e uid; do
                 [[ -z "$u" ]] && continue
                 printf "  %-10s %-16s %-12s %s\n" "$p" "$u" "$e" "$uid"
@@ -83,7 +83,7 @@ renew_user() {
 
     local found_proto=""
     local old_exp=""
-    for p in vmess vless reality trojan ss2022; do
+    for p in vmess vless reality trojan ss2022 shadowsocks; do
         old_exp=$(jq -r --arg u "$user" ".\"$p\"[]? | select(.user==\$u) | .exp" "$USERS_FILE" 2>/dev/null)
         if [[ -n "$old_exp" && "$old_exp" != "null" ]]; then
             found_proto="$p"
@@ -120,11 +120,24 @@ online_check() {
     echo "  Scanning current established connections to Xray ports..."
     echo ""
     local conns
-    conns=$(ss -tnp 2>/dev/null | grep -E ':23456|:14016|:8443|:25432|:10010' | awk '{print $5}' | cut -d: -f1 | sort -u)
+    conns=$(ss -tnp 2>/dev/null | grep -E ':23456|:14016|:8443|:25432|:10010|:10004' | awk '{print $5}' | grep -v '127.0.0.1' | sed 's/:[0-9]*$//' | sort -u)
     if [[ -n "$conns" ]]; then
-        echo "  Connected Remote IPs:"
+        echo "  Direct Client Connections:"
         echo "$conns" | sed 's/^/    ● /'
-    else
+    fi
+
+    # Check recent client activity from Xray access log (last 5 minutes)
+    if [[ -s /var/log/xray/access.log ]]; then
+        local recent_accepted
+        recent_accepted=$(tail -n 100 /var/log/xray/access.log 2>/dev/null | grep "accepted" | awk '{print $3}' | sed 's/:[0-9]*$//' | sort -u | tail -10)
+        if [[ -n "$recent_accepted" ]]; then
+            echo ""
+            echo "  Recent Active Client IPs (Access Log):"
+            echo "$recent_accepted" | sed 's/^/    ○ /'
+        fi
+    fi
+
+    if [[ -z "$conns" && -z "$recent_accepted" ]]; then
         echo "  No active client connections right now."
     fi
     echo ""
