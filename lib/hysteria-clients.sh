@@ -6,7 +6,22 @@
 #  lib/hysteria-clients.sh — jq-based Hysteria2 user management
 
 HYSTERIA_CONFIG="/etc/hysteria/config.yaml"
+HYSTERIA_DNS_CONFIG="/etc/hysteria/config-dns.yaml"
+OBFS_KEY_FILE="/etc/hysteria/obfs.key"
 USERS_FILE="/etc/kurovpn/users.json"
+
+hy_get_obfs_key() {
+    if [[ -s "$OBFS_KEY_FILE" ]]; then
+        tr -d '\r\n ' < "$OBFS_KEY_FILE"
+        return
+    fi
+    mkdir -p /etc/hysteria
+    local key
+    key=$(openssl rand -hex 8 2>/dev/null || head -c 8 /dev/urandom | xxd -p 2>/dev/null || echo "kuro$(openssl rand -hex 6)")
+    echo -n "$key" > "$OBFS_KEY_FILE"
+    chmod 600 "$OBFS_KEY_FILE"
+    echo -n "$key"
+}
 
 hy_regen() {
     local domain
@@ -34,8 +49,9 @@ hy_regen() {
     defaultuser: ${placeholder}"
     fi
 
+    # 1. Standard instance (:443 UDP, un-obfuscated QUIC)
     cat > "$HYSTERIA_CONFIG" << HYCONF
-server: :443
+listen: :443
 protocol: udp
 
 tls:
@@ -54,8 +70,38 @@ speedTest: false
 disableUDP: false
 HYCONF
 
-    chmod 600 "$HYSTERIA_CONFIG"
+    # 2. Port 53 DNS Bypass instance (:53 UDP, Salamander obfuscated to bypass ISP DPI)
+    local obfs_key
+    obfs_key=$(hy_get_obfs_key)
+
+    cat > "$HYSTERIA_DNS_CONFIG" << HYDNSCONF
+listen: :53
+protocol: udp
+
+tls:
+  cert: /etc/xray/xray.crt
+  key: /etc/xray/xray.key
+
+obfs:
+  type: salamander
+  salamander:
+    password: ${obfs_key}
+
+${auth_yaml}
+
+masquerade:
+  type: proxy
+  proxy:
+    url: https://${domain}/
+    rewriteHost: true
+
+speedTest: false
+disableUDP: false
+HYDNSCONF
+
+    chmod 600 "$HYSTERIA_CONFIG" "$HYSTERIA_DNS_CONFIG"
     systemctl restart hysteria 2>/dev/null || true
+    systemctl restart hysteria-dns 2>/dev/null || true
 }
 
 hy_add_user() {

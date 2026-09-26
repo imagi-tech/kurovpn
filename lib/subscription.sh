@@ -91,8 +91,14 @@ sub_build_user() {
     local hy2_pass
     hy2_pass=$(jq -r --arg u "$user" '.hysteria2[]? | select(.user == $u) | .password // .auth' "$USERS_FILE" 2>/dev/null | head -1)
     if [[ -n "$hy2_pass" && "$hy2_pass" != "null" ]]; then
+        local obfs_key=""
+        [[ -f /etc/hysteria/obfs.key ]] && obfs_key=$(tr -d '\r\n ' < /etc/hysteria/obfs.key 2>/dev/null)
         links+=("hy2://${user}:${hy2_pass}@${domain}:443?insecure=1&sni=${domain}#${user}-Hy2")
-        links+=("hy2://${user}:${hy2_pass}@${domain}:53?insecure=1&sni=${domain}#${user}-Hy2-53")
+        if [[ -n "$obfs_key" ]]; then
+            links+=("hy2://${user}:${hy2_pass}@${domain}:53/?insecure=1&sni=${domain}&obfs=salamander&obfs-password=${obfs_key}#${user}-Hy2-53")
+        else
+            links+=("hy2://${user}:${hy2_pass}@${domain}:53?insecure=1&sni=${domain}#${user}-Hy2-53")
+        fi
     fi
 
     # If no links generated, clean up and exit

@@ -96,10 +96,13 @@ elif systemctl is-active --quiet sshd 2>/dev/null || systemctl is-active --quiet
     systemctl restart sshd 2>/dev/null || systemctl restart ssh 2>/dev/null || true
 fi
 
-# Hysteria2: may run standalone or via systemd
-if systemctl is-active --quiet hysteria 2>/dev/null; then
-    systemctl restart hysteria 2>/dev/null || true
-elif pgrep -x hysteria >/dev/null 2>&1; then
+# Hysteria2: restart both standard (:443) and DNS obfuscated (:53) services
+for hsvc in hysteria hysteria-dns; do
+    if systemctl is-active --quiet "$hsvc" 2>/dev/null; then
+        systemctl restart "$hsvc" 2>/dev/null || true
+    fi
+done
+if pgrep -x hysteria >/dev/null 2>&1 && ! systemctl is-active --quiet hysteria 2>/dev/null; then
     source /usr/lib/kurovpn/hysteria-clients.sh 2>/dev/null || true
     hy_regen 2>/dev/null || true
 fi

@@ -41,8 +41,15 @@ hy_add_user "$user" "$password" "$exp" || { echo -e "\n  ${RED}[ERROR] Failed to
 # Build subscription immediately
 sub_build_user "$user" 2>/dev/null || true
 
+# Obtain persistent Salamander obfuscation key for port 53 DNS bypass
+obfs_key=$(hy_get_obfs_key 2>/dev/null || cat /etc/hysteria/obfs.key 2>/dev/null || echo "")
+
 link="hy2://${user}:${password}@${domain}:443?insecure=1&sni=${domain}#${user}-Hy2"
-link_dns="hy2://${user}:${password}@${domain}:53?insecure=1&sni=${domain}#${user}-Hy2-53"
+if [[ -n "$obfs_key" ]]; then
+    link_dns="hy2://${user}:${password}@${domain}:53/?insecure=1&sni=${domain}&obfs=salamander&obfs-password=${obfs_key}#${user}-Hy2-53"
+else
+    link_dns="hy2://${user}:${password}@${domain}:53?insecure=1&sni=${domain}#${user}-Hy2-53"
+fi
 
 clear
 ui_card_begin "Hysteria2 Account"
@@ -50,7 +57,8 @@ ui_kv "Username"         "${user}"
 ui_kv "Password"         "${password}"
 ui_kv "Host/SNI"         "${domain}"
 ui_kv "Port Standard"    "443 (UDP/QUIC)"
-ui_kv "Port DNS Bypass"  "53 (UDP/QUIC)"
+ui_kv "Port DNS Bypass"  "53 (UDP/QUIC + Salamander Obfs)"
+[[ -n "$obfs_key" ]] && ui_kv "Obfs Key" "${obfs_key}"
 ui_kv "Expired"          "${exp}"
 ui_kv "Subscription"     "https://${domain}/sub/${user}"
 ui_card_end

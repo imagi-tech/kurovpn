@@ -44,7 +44,7 @@ fi
 info "Stopping services..."
 
 SERVICES=(
-    xray nginx dropbear edu badvpn noobzvpns hysteria
+    xray nginx dropbear edu badvpn noobzvpns hysteria hysteria-dns
     kurovpn-bot "wg-quick@wg0" "wg-quick@wgcf"
     xl2tpd ipsec pptpd
 )
@@ -63,6 +63,7 @@ rm -f /etc/systemd/system/badvpn.service
 rm -f /etc/systemd/system/noobzvpns.service
 rm -f /etc/systemd/system/kurovpn-bot.service
 rm -f /etc/systemd/system/hysteria.service
+rm -f /etc/systemd/system/hysteria-dns.service
 systemctl daemon-reload
 
 # ── Remove binaries ────────────────────────────────────

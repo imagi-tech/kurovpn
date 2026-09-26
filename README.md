@@ -21,7 +21,7 @@
 ### Key Architectural Highlights
 - **RFC 8259 Compliant** — Xray configurations are strictly maintained via `jq` manipulation with zero sed-injection or JSON corruption.
 - **True Multi-Protocol Support** — Native support for VMess, VLess, VLess Reality, Trojan, Shadowsocks-2022 (Blake3), Hysteria 2 (QUIC), WireGuard, SSH/Dropbear WebSocket, and L2TP/IPsec.
-- **Hysteria 2 Multi-Port & UDP Port 53 Bypass** — Native Hysteria 2 deployment supporting both port `443` and DNS port `53/udp` redirection for bypassing restrictive network firewalls.
+- **Hysteria 2 Dual-Instance & UDP Port 53 Obfs Bypass** — Native Hysteria 2 deployment supporting both port `443` (standard QUIC) and DNS port `53/udp` with Salamander obfuscation for bypassing carrier Deep Packet Inspection (DPI) and ISP DNS blocks.
 - **Dynamic Subscription Engine** — Automatically serves both Base64 (`/sub/<user>`) and Plaintext (`/sub/<user>.txt`) subscription links over HTTPS with inline terminal QR codes.
 - **One-Command In-Place Updater** — `kurovpn-update` pulls and installs the latest scripts and libraries without disrupting user databases, active connections, or SSL certificates.
 - **Interactive SSH Banner Engine** — Full ANSI colored SSH login banners with custom text editing, presets, and live toggles across OpenSSH and Dropbear.
@@ -59,7 +59,7 @@ curl -fsSL https://raw.githubusercontent.com/imagi-tech/kurovpn/main/install.sh 
 | **VLESS Reality** | XTLS-RPRX-Vision (Direct) | `8443` | — | ✅ Active |
 | **Xray Trojan** | WS / gRPC / HTTPUpgrade | `443`, `53`, `2095` | `80`, `2082` | ✅ Active |
 | **Shadowsocks-2022** | 2022-BLAKE3-AES-128-GCM | `10010` | — | ✅ Active |
-| **Hysteria 2** | QUIC / UDP (BBR Congestion) | `443/udp`, `53/udp` (DNS) | — | ✅ Active |
+| **Hysteria 2** | QUIC / UDP (BBR Congestion) | `443/udp` (Standard), `53/udp` (Salamander Obfs) | — | ✅ Active |
 | **WireGuard** | Linux Kernel Module (`wg0`) | — | `2048/udp` | ✅ Active |
 | **SSH & Dropbear** | OpenSSH & Dropbear + WS Proxy | `443`, `77`, `2080` | `22`, `109`, `111`, `69`, `3303` | ✅ Active |
 | **L2TP / IPsec** | xl2tpd + Libreswan | — | `udp 500, 4500, 1701` | ✅ Active |
@@ -120,7 +120,7 @@ All management tools are installed globally into `/usr/bin/`:
 |---|---|
 | `menu` | Central interactive TUI dashboard |
 | `menu-xray` | Dedicated Xray manager (VMess, VLess, Reality, Trojan, SS-2022) |
-| `menu-hy2` | Dedicated Hysteria 2 QUIC manager (multi-user auth, config reload, port 443 & 53) |
+| `menu-hy2` | Dedicated Hysteria 2 QUIC manager (multi-user auth, config reload, port 443 & port 53 Salamander Obfs) |
 | `menu-ssh` | SSH / Dropbear account & ANSI banner manager |
 | `Menu-WGF` | WireGuard client manager (auto-IP allocation, QR code generator) |
 | `lmenu` | L2TP/IPsec account manager |
@@ -135,7 +135,7 @@ All management tools are installed globally into `/usr/bin/`:
 | `add-reality` | VLESS-XTLS-Vision Reality (Direct port 8443) |
 | `add-trojan` | Trojan (WS + gRPC TLS) |
 | `add-ss2022` | Shadowsocks-2022 Blake3 (Direct port 10010) |
-| `add-hysteria2` | Hysteria 2 QUIC (`hy2://` userpass auth, ports 443 & 53) |
+| `add-hysteria2` | Hysteria 2 QUIC (`hy2://` userpass auth, standard port 443 & Salamander obfs port 53) |
 | `addssh` | Linux SSH + Dropbear + WebSocket account |
 | `add-l2tp` | L2TP/IPsec with pre-shared key |
 

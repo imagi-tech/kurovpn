@@ -58,8 +58,9 @@ regenerate_hysteria_config() {
 }
 
 install_hysteria_service() {
-    log_info "Creating Hysteria2 systemd service"
+    log_info "Creating Hysteria2 systemd services"
 
+    # 1. Standard Hysteria2 service (:443 UDP)
     cat > /etc/systemd/system/hysteria.service << 'HYUNIT'
 [Unit]
 Description=Hysteria2 QUIC Proxy Server
@@ -80,24 +81,44 @@ NoNewPrivileges=true
 WantedBy=multi-user.target
 HYUNIT
 
-    # Enable UDP port 53 redirection to Hysteria on port 443 (allows connections on both 443 and 53)
-    iptables -t nat -C PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 443 2>/dev/null || \
-    iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 443 2>/dev/null || true
+    # 2. Port 53 DNS Bypass Hysteria2 service (:53 UDP + Salamander Obfuscation)
+    cat > /etc/systemd/system/hysteria-dns.service << 'HYDNSUNIT'
+[Unit]
+Description=Hysteria2 QUIC Proxy Server (Port 53 DNS Obfuscated)
+Documentation=https://github.com/apernet/hysteria
+After=network.target nss-lookup.target
 
-    iptables -t nat -C OUTPUT -p udp -o lo --dport 53 -j REDIRECT --to-ports 443 2>/dev/null || \
-    iptables -t nat -A OUTPUT -p udp -o lo --dport 53 -j REDIRECT --to-ports 443 2>/dev/null || true
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/hysteria server -c /etc/hysteria/config-dns.yaml
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=1048576
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+NoNewPrivileges=true
 
-    ip6tables -t nat -C PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 443 2>/dev/null || \
-    ip6tables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 443 2>/dev/null || true
+[Install]
+WantedBy=multi-user.target
+HYDNSUNIT
+
+    # Remove any legacy iptables port 53 UDP redirect rules since hysteria-dns binds directly to :53/udp
+    iptables -t nat -D PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 443 2>/dev/null || true
+    iptables -t nat -D OUTPUT -p udp -o lo --dport 53 -j REDIRECT --to-ports 443 2>/dev/null || true
+    ip6tables -t nat -D PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 443 2>/dev/null || true
 
     systemctl daemon-reload
     svc_enable hysteria
     svc_restart hysteria
+    svc_enable hysteria-dns
+    svc_restart hysteria-dns
 
     sleep 2
-    if svc_active hysteria; then
-        log_info "Hysteria2 service running (ports: 443, 53 UDP)"
+    if svc_active hysteria && svc_active hysteria-dns; then
+        log_info "Hysteria2 services running (Port 443 Standard & Port 53 DNS Salamander Obfs)"
+    elif svc_active hysteria; then
+        log_info "Hysteria2 standard service running (:443 UDP)"
     else
-        log_warn "Hysteria2 service may have issues — check 'systemctl status hysteria'"
+        log_warn "Hysteria2 service may have issues — check 'systemctl status hysteria hysteria-dns'"
     fi
 }
