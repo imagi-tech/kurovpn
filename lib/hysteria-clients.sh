@@ -7,8 +7,25 @@
 
 HYSTERIA_CONFIG="/etc/hysteria/config.yaml"
 HYSTERIA_DNS_CONFIG="/etc/hysteria/config-dns.yaml"
+HYSTERIA_AUTH_SCRIPT="/usr/lib/kurovpn/hy2_auth.sh"
+HYSTERIA_TOKENS_FILE="/etc/hysteria/allowed_tokens.txt"
 OBFS_KEY_FILE="/etc/hysteria/obfs.key"
 USERS_FILE="/etc/kurovpn/users.json"
+
+hy_ensure_auth_script() {
+    mkdir -p /usr/lib/kurovpn /etc/hysteria
+    cat > "$HYSTERIA_AUTH_SCRIPT" << 'AUTH_EOF'
+#!/bin/bash
+AUTH_STR="$2"
+TOKENS_FILE="/etc/hysteria/allowed_tokens.txt"
+[[ -z "$AUTH_STR" || ! -f "$TOKENS_FILE" ]] && exit 1
+if grep -qxF "$AUTH_STR" "$TOKENS_FILE" 2>/dev/null; then
+    exit 0
+fi
+exit 1
+AUTH_EOF
+    chmod 755 "$HYSTERIA_AUTH_SCRIPT"
+}
 
 hy_get_obfs_key() {
     if [[ -s "$OBFS_KEY_FILE" ]]; then
@@ -27,27 +44,29 @@ hy_regen() {
     local domain
     domain=$(cat /etc/xray/domain 2>/dev/null || echo "localhost")
 
-    local count
-    count=$(jq '.hysteria2 | length' "$USERS_FILE" 2>/dev/null || echo 0)
+    hy_ensure_auth_script
 
-    local auth_yaml=""
-    if [[ "$count" -gt 0 ]]; then
-        auth_yaml="auth:
-  type: userpass
-  userpass:"
-        while read -r u p; do
-            [[ -z "$u" || -z "$p" ]] && continue
-            auth_yaml="${auth_yaml}
-    ${u}: ${p}"
-        done < <(jq -r '.hysteria2[]? | "\(.user) \(.password)"' "$USERS_FILE" 2>/dev/null)
-    else
-        local placeholder
-        placeholder=$(head -c 16 /dev/urandom 2>/dev/null | base64 -w0 2>/dev/null || openssl rand -hex 16)
-        auth_yaml="auth:
-  type: userpass
-  userpass:
-    defaultuser: ${placeholder}"
+    # Populate token file supporting both single-password and username:password clients (e.g. Happ/sing-box)
+    local tmp_tokens="${HYSTERIA_TOKENS_FILE}.tmp.$$"
+    > "$tmp_tokens"
+    while read -r u p; do
+        [[ -z "$p" ]] && continue
+        echo "$p" >> "$tmp_tokens"
+        [[ -n "$u" ]] && echo "${u}:${p}" >> "$tmp_tokens"
+        [[ -n "$u" ]] && echo "${u}" >> "$tmp_tokens"
+    done < <(jq -r '.hysteria2[]? | "\(.user) \(.password)"' "$USERS_FILE" 2>/dev/null)
+
+    if [[ ! -s "$tmp_tokens" ]]; then
+        local fallback_key
+        fallback_key=$(openssl rand -hex 12 2>/dev/null || echo "kurofallback")
+        echo "$fallback_key" >> "$tmp_tokens"
     fi
+    mv "$tmp_tokens" "$HYSTERIA_TOKENS_FILE"
+    chmod 600 "$HYSTERIA_TOKENS_FILE"
+
+    local auth_yaml="auth:
+  type: command
+  command: ${HYSTERIA_AUTH_SCRIPT}"
 
     # 1. Standard instance (:443 UDP, un-obfuscated QUIC)
     cat > "$HYSTERIA_CONFIG" << HYCONF

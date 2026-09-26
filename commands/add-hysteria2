@@ -44,11 +44,11 @@ sub_build_user "$user" 2>/dev/null || true
 # Obtain persistent Salamander obfuscation key for port 53 DNS bypass
 obfs_key=$(hy_get_obfs_key 2>/dev/null || cat /etc/hysteria/obfs.key 2>/dev/null || echo "")
 
-link="hy2://${user}:${password}@${domain}:443?insecure=1&sni=${domain}#${user}-Hy2"
+link="hy2://${password}@${domain}:443/?insecure=1&sni=${domain}#${user}-Hy2"
 if [[ -n "$obfs_key" ]]; then
-    link_dns="hy2://${user}:${password}@${domain}:53/?insecure=1&sni=${domain}&obfs=salamander&obfs-password=${obfs_key}#${user}-Hy2-53"
+    link_dns="hy2://${password}@${domain}:53/?insecure=1&sni=${domain}&obfs=salamander&obfs-password=${obfs_key}#${user}-Hy2-53"
 else
-    link_dns="hy2://${user}:${password}@${domain}:53?insecure=1&sni=${domain}#${user}-Hy2-53"
+    link_dns="hy2://${password}@${domain}:53/?insecure=1&sni=${domain}#${user}-Hy2-53"
 fi
 
 clear
