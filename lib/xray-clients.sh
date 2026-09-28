@@ -16,6 +16,9 @@
 XRAY_CONFIG="/etc/xray/config.json"
 USERS_FILE="/etc/kurovpn/users.json"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$SCRIPT_DIR/lib/users.sh" 2>/dev/null || source /usr/lib/kurovpn/users.sh 2>/dev/null || true
+
 # ── Inbound ports for each protocol ────────────────────
 VMESS_PORTS=(23456 31234 8001)
 VLESS_PORTS=(14016 24456 8003)
@@ -193,37 +196,3 @@ xray_del_ss2022_client() {
     systemctl restart xray 2>/dev/null || true
 }
 
-# ── User database helpers ───────────────────────────────
-users_add() {
-    local proto="$1" user="$2" exp="$3" extra="$4"
-    local today=$(date +%Y-%m-%d)
-    local entry='{"user":"'"$user"'","exp":"'"$exp"'","created":"'"$today"'"'
-    [[ -n "$extra" ]] && entry="$entry,$extra"
-    entry="$entry}"
-    local tmpfile="${USERS_FILE}.tmp.$$"
-    jq --argjson entry "$entry" --arg proto "$proto" \
-        '.[$proto] += [$entry]' "$USERS_FILE" > "$tmpfile"
-    if [[ -s "$tmpfile" ]] && jq . "$tmpfile" >/dev/null 2>&1; then
-        mv "$tmpfile" "$USERS_FILE"
-        chmod 600 "$USERS_FILE"
-    else
-        rm -f "$tmpfile"
-        return 1
-    fi
-}
-
-users_del() {
-    local proto="$1" user="$2"
-    local tmpfile="${USERS_FILE}.tmp.$$"
-    jq --arg proto "$proto" --arg user "$user" \
-        '.[$proto] |= (if . then map(select(.user != $user)) else [] end)' "$USERS_FILE" > "$tmpfile"
-    if [[ -s "$tmpfile" ]] && jq . "$tmpfile" >/dev/null 2>&1; then
-        mv "$tmpfile" "$USERS_FILE"
-        chmod 600 "$USERS_FILE"
-        source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
-        sub_build_user "$user" 2>/dev/null || true
-    else
-        rm -f "$tmpfile"
-        return 1
-    fi
-}

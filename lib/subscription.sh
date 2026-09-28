@@ -6,7 +6,7 @@
 #  lib/subscription.sh — Dynamic client subscription engine
 
 SUB_DIR="/var/www/html/sub"
-USERS_FILE="/etc/kurovpn/users.json"
+USERS_FILE="${USERS_FILE:-/etc/kurovpn/users.json}"
 DOMAIN_FILE="/etc/xray/domain"
 
 sub_init() {

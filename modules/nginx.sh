@@ -12,9 +12,10 @@ install_nginx() {
 
     local domain="$1"
 
-    # Free port 53 from systemd-resolved stub listener
+    # Free port 53 from systemd-resolved stub listener safely
     if svc_active "systemd-resolved" 2>/dev/null; then
-        log_info "Disabling systemd-resolved DNS stub on port 53"
+        log_info "Configuring systemd-resolved DNS stub listener for port 53 compatibility"
+        [[ ! -f /etc/systemd/resolved.conf.bak ]] && cp /etc/systemd/resolved.conf /etc/systemd/resolved.conf.bak 2>/dev/null || true
         sed -i 's/^#*DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf
         svc_restart systemd-resolved 2>/dev/null || true
     fi
@@ -28,26 +29,14 @@ install_nginx() {
     # Validate
     nginx -t 2>&1 || die "Nginx configuration test failed"
 
-    # Systemd override for nginx (if needed)
-    cat > /etc/systemd/system/nginx.service << 'NGINX_UNIT'
-[Unit]
-Description=A high-performance web server and reverse proxy
-Documentation=man:nginx(8)
-After=network.target nss-lookup.target
-
+    # Use systemd drop-in override for nginx rather than replacing the distribution unit
+    mkdir -p /etc/systemd/system/nginx.service.d
+    cat > /etc/systemd/system/nginx.service.d/override.conf << 'NGINX_OVERRIDE'
 [Service]
-Type=forking
-PIDFile=/run/nginx.pid
-ExecStartPre=/usr/sbin/nginx -t -q -g 'daemon on; master_process on;'
-ExecStart=/usr/sbin/nginx -g 'daemon on; master_process on;'
-ExecReload=/usr/sbin/nginx -g 'daemon on; master_process on;' -s reload
-ExecStop=-/sbin/start-stop-daemon --quiet --stop --retry QUIT/5 --pidfile /run/nginx.pid
-TimeoutStopSec=5
-KillMode=mixed
-
-[Install]
-WantedBy=multi-user.target
-NGINX_UNIT
+LimitNOFILE=65535
+Restart=on-failure
+RestartSec=5s
+NGINX_OVERRIDE
 
     systemctl daemon-reload
     svc_enable nginx

@@ -53,7 +53,18 @@ install_xray_core() {
     tmpdir=$(mktemp -d)
 
     log_info "Downloading Xray-core..."
-    curl -sL "$url" -o "$tmpdir/xray.zip" || die "Failed to download Xray-core"
+    curl -sL --proto '=https' --tlsv1.2 "$url" -o "$tmpdir/xray.zip" || die "Failed to download Xray-core"
+
+    local expected_sha="17aaa20ce8926cca18a29d99f09b5a50dba0572a175f4ff143305f9680f2e281"
+    if [[ "${ARCH:-amd64}" == "amd64" && "$XRAY_VERSION" == "24.12.18" ]]; then
+        local actual_sha
+        actual_sha=$(sha256sum "$tmpdir/xray.zip" 2>/dev/null | awk '{print $1}')
+        if [[ "$actual_sha" != "$expected_sha" ]]; then
+            rm -rf "$tmpdir"
+            die "Xray-core checksum verification failed! Expected: $expected_sha, got: $actual_sha"
+        fi
+        log_info "Xray-core SHA-256 checksum verified: OK"
+    fi
 
     unzip -o "$tmpdir/xray.zip" -d "$tmpdir" >/dev/null
     cp "$tmpdir/xray" /usr/bin/xray
@@ -86,6 +97,25 @@ generate_xray_config() {
 
     local default_uuid
     default_uuid=$(/usr/bin/xray uuid 2>/dev/null || echo "00000000-0000-0000-0000-000000000000")
+
+    # Generate initial secure administrative proxy credentials
+    local admin_proxy_user="admin_$(openssl rand -hex 3 2>/dev/null || echo 'proxy')"
+    local admin_proxy_pass="$(openssl rand -hex 8 2>/dev/null || echo 'Pass_'$(date +%s))"
+    local proxy_exp="$(date -d '365 days' +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)"
+    local today_date="$(date +%Y-%m-%d)"
+
+    # Store initial admin proxy account in users.json if not present
+    if [[ -f "$USERS_FILE" ]] && ! jq -e '.proxy // [] | length > 0' "$USERS_FILE" &>/dev/null; then
+        local ptmp="${USERS_FILE}.tmp.$$"
+        jq --arg u "$admin_proxy_user" --arg p "$admin_proxy_pass" --arg e "$proxy_exp" --arg c "$today_date" \
+           '(.proxy // []) += [{"user": $u, "password": $p, "created": $c, "exp": $e}]' "$USERS_FILE" > "$ptmp" 2>/dev/null
+        if [[ -s "$ptmp" ]] && jq empty "$ptmp" &>/dev/null; then
+            mv "$ptmp" "$USERS_FILE"
+            chmod 600 "$USERS_FILE"
+        else
+            rm -f "$ptmp"
+        fi
+    fi
 
     cat > "$XRAY_CONFIG" << XRAY_CONF
 {
@@ -334,8 +364,8 @@ generate_xray_config() {
         "allowTransparent": false,
         "accounts": [
           {
-            "user": "kuro",
-            "pass": "kuro2024"
+            "user": "${admin_proxy_user}",
+            "pass": "${admin_proxy_pass}"
           }
         ]
       },
@@ -353,39 +383,10 @@ generate_xray_config() {
         "auth": "password",
         "accounts": [
           {
-            "user": "kuro",
-            "pass": "kuro2024"
+            "user": "${admin_proxy_user}",
+            "pass": "${admin_proxy_pass}"
           }
         ],
-        "udp": true,
-        "ip": "0.0.0.0"
-      },
-      "sniffing": {
-        "enabled": true,
-        "destOverride": ["http", "tls"]
-      }
-    },
-    {
-      "tag": "http-proxy-noauth-in",
-      "listen": "0.0.0.0",
-      "port": 8080,
-      "protocol": "http",
-      "settings": {
-        "timeout": 300,
-        "allowTransparent": false
-      },
-      "sniffing": {
-        "enabled": true,
-        "destOverride": ["http", "tls"]
-      }
-    },
-    {
-      "tag": "socks-proxy-noauth-in",
-      "listen": "0.0.0.0",
-      "port": 1081,
-      "protocol": "socks",
-      "settings": {
-        "auth": "noauth",
         "udp": true,
         "ip": "0.0.0.0"
       },
@@ -411,7 +412,7 @@ generate_xray_config() {
     "rules": [
       {
         "type": "field",
-        "inboundTag": ["http-proxy-in", "socks-proxy-in", "http-proxy-noauth-in", "socks-proxy-noauth-in"],
+        "inboundTag": ["http-proxy-in", "socks-proxy-in"],
         "outboundTag": "direct"
       },
       {

@@ -33,7 +33,18 @@ install_hysteria2() {
     tmpdir=$(mktemp -d)
 
     log_info "Downloading Hysteria2..."
-    curl -sL "$url" -o "$tmpdir/hysteria" || die "Failed to download Hysteria2"
+    curl -sL --proto '=https' --tlsv1.2 "$url" -o "$tmpdir/hysteria" || die "Failed to download Hysteria2"
+
+    local expected_sha="2de3650bf3464af49238160c94487c6edcefb53fbd09a8961cfcdb692cd817c5"
+    if [[ "$arch" == "amd64" && "$HYSTERIA_VERSION" == "2.12.0" ]]; then
+        local actual_sha
+        actual_sha=$(sha256sum "$tmpdir/hysteria" 2>/dev/null | awk '{print $1}')
+        if [[ "$actual_sha" != "$expected_sha" ]]; then
+            rm -rf "$tmpdir"
+            die "Hysteria2 checksum verification failed! Expected: $expected_sha, got: $actual_sha"
+        fi
+        log_info "Hysteria2 SHA-256 checksum verified: OK"
+    fi
 
     cp "$tmpdir/hysteria" "$HYSTERIA_BIN"
     chmod +x "$HYSTERIA_BIN"

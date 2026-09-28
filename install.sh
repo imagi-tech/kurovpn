@@ -15,12 +15,12 @@ if [ ! -f "$SCRIPT_DIR/lib/common.sh" ]; then
     TMP_BOOTSTRAP_DIR="/tmp/kurovpn-bootstrap-$$"
     mkdir -p "$TMP_BOOTSTRAP_DIR"
     if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "https://github.com/imagi-tech/kurovpn/archive/refs/heads/main.tar.gz" | tar -xz --strip-components=1 -C "$TMP_BOOTSTRAP_DIR"
+        curl -fsSL --proto '=https' --tlsv1.2 "https://github.com/imagi-tech/kurovpn/archive/refs/heads/main.tar.gz" | tar -xz --strip-components=1 -C "$TMP_BOOTSTRAP_DIR"
     elif command -v wget >/dev/null 2>&1; then
         wget -qO- "https://github.com/imagi-tech/kurovpn/archive/refs/heads/main.tar.gz" | tar -xz --strip-components=1 -C "$TMP_BOOTSTRAP_DIR"
     else
         apt-get update -qq && apt-get install -y -qq curl tar >/dev/null 2>&1
-        curl -fsSL "https://github.com/imagi-tech/kurovpn/archive/refs/heads/main.tar.gz" | tar -xz --strip-components=1 -C "$TMP_BOOTSTRAP_DIR"
+        curl -fsSL --proto '=https' --tlsv1.2 "https://github.com/imagi-tech/kurovpn/archive/refs/heads/main.tar.gz" | tar -xz --strip-components=1 -C "$TMP_BOOTSTRAP_DIR"
     fi
     exec bash "$TMP_BOOTSTRAP_DIR/install.sh" "$@"
 fi

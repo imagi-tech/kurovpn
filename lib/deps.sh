@@ -66,11 +66,15 @@ install_deps() {
     touch /etc/nginx/logs/error.log
     chmod 777 /etc/nginx/logs/error.log
 
-    # Remove interfering packages
-    log_info "Removing conflicting packages..."
-    apt-get -y --purge remove apache2* samba* bind9 sendmail* unscd 2>/dev/null || true
-    apt-get autoremove -y -qq 2>/dev/null || true
-    apt-get autoclean -y -qq 2>/dev/null || true
+    # Safely disable conflicting port 80/443/53 services without purging unrelated packages
+    log_info "Checking and disabling conflicting port 80/443/53 services..."
+    for svc in apache2 bind9 named; do
+        if systemctl is-active --quiet "$svc" 2>/dev/null || systemctl is-enabled --quiet "$svc" 2>/dev/null; then
+            systemctl stop "$svc" 2>/dev/null || true
+            systemctl disable "$svc" 2>/dev/null || true
+            log_info "Disabled conflicting service: $svc"
+        fi
+    done
 
     log_info "System dependencies ready"
 }

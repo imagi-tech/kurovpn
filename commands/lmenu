@@ -83,10 +83,7 @@ add_user() {
         echo -e "  ${WHITE}HTTP Proxy (Port 80):${NC}    ${CYAN}http://${user}:${pass}@${host}:80${NC}"
         echo -e "  ${WHITE}SOCKS5 Proxy (Port 1080):${NC} ${CYAN}socks5://${user}:${pass}@${host}:1080${NC}"
         echo ""
-        ui_section "Unauthenticated Endpoints"
-        echo -e "  ${WHITE}HTTP Open (Port 8080):${NC}   ${CYAN}http://${host}:8080${NC}"
-        echo -e "  ${WHITE}SOCKS5 Open (Port 1081):${NC} ${CYAN}socks5://${host}:1081${NC}"
-        echo ""
+
     else
         echo -e "\n  ${RED}Failed to create account:${NC} $res"
     fi
@@ -242,10 +239,8 @@ show_status() {
     echo ""
 
     ui_section "Proxy Ports"
-    _proxy_port_status 80   "HTTP Proxy (Auth Required)"
-    _proxy_port_status 8080 "HTTP Proxy (No Auth)"
-    _proxy_port_status 1080 "SOCKS5 Proxy (Auth Required)"
-    _proxy_port_status 1081 "SOCKS5 Proxy (No Auth)"
+    _proxy_port_status 80   "HTTP Proxy (Auth)"
+    _proxy_port_status 1080 "SOCKS5 Proxy (Auth)"
     echo ""
 
     ui_section "Account Summary"
@@ -272,18 +267,12 @@ show_config() {
     echo -e "    ${CYAN}socks5://<username>:<password>@${host}:1080${NC}"
     echo ""
 
-    ui_section "Open / Unauthenticated Proxies"
-    echo -e "  ${WHITE}HTTP Open (Port 8080):${NC}"
-    echo -e "    ${CYAN}http://${host}:8080${NC}"
-    echo ""
-    echo -e "  ${WHITE}SOCKS5 Open (Port 1081):${NC}"
-    echo -e "    ${CYAN}socks5://${host}:1081${NC}"
-    echo ""
+
 
     ui_section "Android Setup"
     echo -e "  WiFi Settings → Select Network → Advanced / Proxy → Manual"
     echo -e "  Proxy Hostname: ${CYAN}${host}${NC}"
-    echo -e "  Proxy Port:     ${CYAN}80${NC} (or 8080 for open)"
+    echo -e "  Proxy Port:     ${CYAN}80${NC} (HTTP) or ${CYAN}1080${NC} (SOCKS5)"
     echo ""
 
     ui_section "CLI Quick Test"

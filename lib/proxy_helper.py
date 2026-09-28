@@ -188,7 +188,7 @@ def cmd_renew(username, days_str):
     today = datetime.now().date()
     if not user_entry:
         xray_accs = get_xray_proxy_accounts()
-        pwd = xray_accs.get(username, "kuro2024")
+        pwd = xray_accs.get(username, "")
         old_date = today
         new_date = today + timedelta(days=days)
         user_entry = {

@@ -303,8 +303,8 @@
         "allowTransparent": false,
         "accounts": [
           {
-            "user": "kuro",
-            "pass": "kuro2024"
+            "user": "ADMIN_USER",
+            "pass": "GENERATED_PASSWORD"
           }
         ]
       },
@@ -327,45 +327,10 @@
         "ip": "0.0.0.0",
         "accounts": [
           {
-            "user": "kuro",
-            "pass": "kuro2024"
+            "user": "ADMIN_USER",
+            "pass": "GENERATED_PASSWORD"
           }
         ]
-      },
-      "sniffing": {
-        "enabled": true,
-        "destOverride": [
-          "http",
-          "tls"
-        ]
-      }
-    },
-    {
-      "tag": "http-proxy-noauth-in",
-      "port": 8080,
-      "listen": "0.0.0.0",
-      "protocol": "http",
-      "settings": {
-        "timeout": 300,
-        "allowTransparent": false
-      },
-      "sniffing": {
-        "enabled": true,
-        "destOverride": [
-          "http",
-          "tls"
-        ]
-      }
-    },
-    {
-      "tag": "socks-proxy-noauth-in",
-      "port": 1081,
-      "listen": "0.0.0.0",
-      "protocol": "socks",
-      "settings": {
-        "auth": "noauth",
-        "udp": true,
-        "ip": "0.0.0.0"
       },
       "sniffing": {
         "enabled": true,
@@ -407,7 +372,8 @@
           "fc00::/7",
           "fe80::/10"
         ],
-        "outboundTag": "blocked"
+        "outboundTag": "blocked",
+        "inboundTag": []
       },
       {
         "inboundTag": [
@@ -421,15 +387,14 @@
         "outboundTag": "blocked",
         "protocol": [
           "bittorrent"
-        ]
+        ],
+        "inboundTag": []
       },
       {
         "type": "field",
         "inboundTag": [
           "http-proxy-in",
-          "socks-proxy-in",
-          "http-proxy-noauth-in",
-          "socks-proxy-noauth-in"
+          "socks-proxy-in"
         ],
         "outboundTag": "direct"
       }

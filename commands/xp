@@ -9,11 +9,13 @@ XRAY_CONFIG="/etc/xray/config.json"
 USERS_FILE="/etc/kurovpn/users.json"
 NOW=$(date +%Y-%m-%d)
 
+source /usr/lib/kurovpn/users.sh 2>/dev/null || true
+
 [ -f "$USERS_FILE" ] || exit 0
 
 echo -n > /var/log/xray/access.log 2>/dev/null
 
-# ── Embedded xray helpers (no sourcing needed) ──────────
+# ── Embedded xray helpers ──────────────────────────────
 get_xray_ports() {
     case "$1" in
         vmess) echo "23456 31234 8001" ;;
@@ -38,7 +40,7 @@ del_from_xray() {
             mv "${tmpfile}.2" "$tmpfile"
         fi
     done
-    if [[ -s "$tmpfile" ]] && jq . "$tmpfile" >/dev/null 2>&1; then
+    if [[ -s "$tmpfile" ]] && jq empty "$tmpfile" >/dev/null 2>&1; then
         mv "$tmpfile" "$XRAY_CONFIG"
         chmod 644 "$XRAY_CONFIG"
     fi
@@ -50,13 +52,18 @@ del_from_xray_ss2022() {
     del_from_xray "ss2022" "password" "$val"
 }
 
-del_hysteria2_user() {
-    local user="$1"
+del_from_users() {
+    local proto="$1" user="$2"
+    [[ "$proto" == "ss" ]] && proto="shadowsocks"
+    if declare -f users_del >/dev/null 2>&1; then
+        users_del "$proto" "$user"
+        return $?
+    fi
     local tmpfile="${USERS_FILE}.tmp.$$"
-    jq --arg user "$user" \
-        '.hysteria2 |= (if . then map(select(.user != $user)) else [] end)' \
+    jq --arg proto "$proto" --arg user "$user" \
+        '.[$proto] |= (if . then map(select(.user != $user)) else [] end)' \
         "$USERS_FILE" > "$tmpfile" 2>/dev/null
-    if [[ -s "$tmpfile" ]] && jq . "$tmpfile" >/dev/null 2>&1; then
+    if [[ -s "$tmpfile" ]] && jq empty "$tmpfile" >/dev/null 2>&1; then
         mv "$tmpfile" "$USERS_FILE"
         chmod 600 "$USERS_FILE" 2>/dev/null
     else
@@ -64,18 +71,8 @@ del_hysteria2_user() {
     fi
 }
 
-del_from_users() {
-    local proto="$1" user="$2"
-    local tmpfile="${USERS_FILE}.tmp.$$"
-    jq --arg proto "$proto" --arg user "$user" \
-        '.[$proto] |= (if . then map(select(.user != $user)) else [] end)' \
-        "$USERS_FILE" > "$tmpfile" 2>/dev/null
-    if [[ -s "$tmpfile" ]] && jq . "$tmpfile" >/dev/null 2>&1; then
-        mv "$tmpfile" "$USERS_FILE"
-        chmod 600 "$USERS_FILE" 2>/dev/null
-    else
-        rm -f "$tmpfile"
-    fi
+del_hysteria2_user() {
+    del_from_users "hysteria2" "$1"
 }
 
 # ── Process Xray users ─────────────────────────────────

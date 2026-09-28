@@ -22,7 +22,7 @@
 ### Key Architectural Highlights
 - **RFC 8259 Compliant** — Xray configurations are strictly maintained via safe JSON manipulation with zero sed-injection or config corruption.
 - **True Multi-Protocol Support** — Native support for VMess, VLess, VLess Reality, Trojan, Shadowsocks-2022 (Blake3), Hysteria 2 (QUIC), WireGuard, SSH/Dropbear WebSocket, and **HTTP & SOCKS5 Proxies**.
-- **Dedicated HTTP & SOCKS5 Proxies (Menu 5)** — Built-in authenticated proxies on standard ports (`80` for HTTP, `1080` for SOCKS5) plus unauthenticated open fallback ports (`8080` for HTTP, `1081` for SOCKS5) with automated expiration tracking and renewal.
+- **Dedicated HTTP & SOCKS5 Proxies (Menu 5)** — Built-in authenticated proxies on standard ports (`80` for HTTP, `1080` for SOCKS5) with per-user authentication, automated expiration tracking, and renewal.
 - **Hysteria 2 Dual-Instance & UDP Port 53 Obfs Bypass** — Native Hysteria 2 deployment supporting both port `443` (standard QUIC) and DNS port `53/udp` with Salamander obfuscation for bypassing carrier Deep Packet Inspection (DPI) and ISP DNS blocks.
 - **Dynamic Subscription Engine** — Automatically serves both Base64 (`/sub/<user>`) and Plaintext (`/sub/<user>.txt`) subscription links over HTTPS with inline terminal QR codes.
 - **One-Command In-Place Updater** — `kurovpn-update` pulls and installs the latest scripts and libraries without disrupting user databases, active connections, or SSL certificates.
@@ -64,8 +64,8 @@ curl -fsSL https://raw.githubusercontent.com/imagi-tech/kurovpn/main/install.sh 
 | **Hysteria 2** | QUIC / UDP (BBR Congestion) | `443/udp` (Standard), `53/udp` (Salamander Obfs) | — | ✅ Active |
 | **WireGuard** | Linux Kernel Module (`wg0`) | — | `2048/udp` | ✅ Active |
 | **SSH & Dropbear** | OpenSSH & Dropbear + WS Proxy | `443`, `77`, `2080` | `22`, `109`, `111`, `69`, `3303` | ✅ Active |
-| **HTTP Proxy** | Native Xray Core | — | `80` (Auth), `8080` (No-Auth) | ✅ Active |
-| **SOCKS5 Proxy** | Native Xray Core | — | `1080` (Auth), `1081` (No-Auth) | ✅ Active |
+| **HTTP Proxy** | Native Xray Core | — | `80` (Auth Required) | ✅ Active |
+| **SOCKS5 Proxy** | Native Xray Core | — | `1080` (Auth Required) | ✅ Active |
 | **BadVPN (UDPGW)** | UDP Game / VOIP Accelerator | — | `udp 7300` | ✅ Active |
 | **NoobZVPNS** | TCP / TLS / WebSocket | `9443` | `8088` | ⚠️ Optional |
 
@@ -130,7 +130,7 @@ Accessible via `menu` (Option 5) or directly typing `lmenu`:
    5) Change User Password   (Update credentials)
 
   System & Connection
-   6) Service & Port Status  (Live port 80/8080/1080/1081 check)
+   6) Service & Port Status  (Live port 80/1080 check)
    7) Connection Info & Guide (Endpoints & mobile setup)
    8) Restart Proxy (Xray)   (Daemon reload)
 ```
@@ -138,8 +138,7 @@ Accessible via `menu` (Option 5) or directly typing `lmenu`:
 ### Proxy Connection Guide
 - **Authenticated HTTP Proxy**: `http://<user>:<pass>@<domain>:80`
 - **Authenticated SOCKS5 Proxy**: `socks5://<user>:<pass>@<domain>:1080`
-- **Open / No-Auth HTTP**: `http://<domain>:8080`
-- **Open / No-Auth SOCKS5**: `socks5://<domain>:1081`
+
 
 ### Quick CLI Testing
 ```bash
@@ -149,11 +148,7 @@ curl -x http://user:pass@vpn.example.com:80 https://api.ipify.org
 # Test SOCKS5 Auth
 curl -x socks5h://user:pass@vpn.example.com:1080 https://api.ipify.org
 
-# Test HTTP Open
-curl -x http://vpn.example.com:8080 https://api.ipify.org
 
-# Test SOCKS5 Open
-curl -x socks5h://vpn.example.com:1081 https://api.ipify.org
 ```
 
 ---
