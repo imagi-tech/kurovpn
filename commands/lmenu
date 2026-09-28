@@ -3,76 +3,342 @@
 #  KUROVPN -- VPN Auto-Installer & Manager
 #  https://github.com/imagi-tech/kurovpn
 #
-#  L2TP/IPsec Account Manager
+#  HTTP & SOCKS5 Proxy Manager (Menu 5)
 
 source /usr/lib/kurovpn/ui.sh 2>/dev/null || true
 ui_require_root
-USERS_FILE="/etc/kurovpn/users.json"
 
-list_l2tp() {
+HELPER="python3 /usr/lib/kurovpn/proxy_helper.py"
+
+_proxy_port_status() {
+    local port=$1 label=$2
+    if ss -tlnp | grep -q ":${port} "; then
+        echo -e "  ${GREEN}●${NC} ${label} (Port ${port}) — ${GREEN}Listening${NC}"
+    else
+        echo -e "  ${RED}●${NC} ${label} (Port ${port}) — ${RED}DOWN${NC}"
+    fi
+}
+
+# ── 1) Create Proxy Account ─────────────────────────────
+add_user() {
     clear
-    ui_header "L2TP/IPsec Users List"
-    printf "  %-15s %-12s\n" "Username" "Expired"
-    echo  "  $(printf '%.s─' {1..28})"
-    grep '^###' /etc/funny/.l2tp 2>/dev/null | awk '{printf "  %-15s %-12s\n", $2, $3}'
+    ui_header "Create Proxy Account" "Proxy › New Account"
+
+    local user=""
+    while true; do
+        read -p "  Username: " user
+        [[ -z "$user" ]] && { echo "  Operation cancelled."; ui_wait_key; return; }
+        if [[ ! "$user" =~ ^[a-zA-Z0-9_]{2,32}$ ]]; then
+            echo -e "  ${RED}Error: Username must be 2-32 alphanumeric or underscore characters.${NC}"
+            continue
+        fi
+        if $HELPER exists "$user" >/dev/null 2>&1; then
+            echo -e "  ${RED}Error: User '$user' already exists!${NC}"
+            continue
+        fi
+        break
+    done
+
+    local pass=""
+    read -p "  Password (leave empty for auto-generated): " pass
+    if [[ -z "$pass" ]]; then
+        pass=$(tr -dc 'a-zA-Z0-9' </dev/urandom | head -c 10)
+        echo -e "  Generated Password: ${CYAN}${pass}${NC}"
+    fi
+
+    local days=""
+    while true; do
+        read -p "  Duration in Days [default: 30]: " days
+        [[ -z "$days" ]] && days=30
+        if [[ "$days" =~ ^[0-9]+$ ]] && [[ "$days" -gt 0 ]]; then
+            break
+        fi
+        echo -e "  ${RED}Error: Please enter a valid positive number.${NC}"
+    done
+
+    local res
+    res=$($HELPER add "$user" "$pass" "$days")
+    local status=$?
+
+    if [[ $status -eq 0 && "$res" =~ ^SUCCESS: ]]; then
+        systemctl restart xray 2>/dev/null || true
+        sleep 1
+
+        local exp=$(echo "$res" | cut -d: -f4)
+        local domain=$(cat /etc/xray/domain 2>/dev/null || echo "")
+        local myip=$(curl -s --connect-timeout 2 ipinfo.io/ip 2>/dev/null || curl -s ifconfig.me || echo "68.211.88.80")
+        local host="${domain:-$myip}"
+
+        clear
+        ui_header "Proxy Account Created" "Proxy › Success"
+        echo ""
+        echo -e "  ${GREEN}✔ Account created successfully!${NC}"
+        echo ""
+        ui_section "Account Credentials"
+        echo -e "  ${WHITE}Username:${NC}  ${CYAN}${user}${NC}"
+        echo -e "  ${WHITE}Password:${NC}  ${CYAN}${pass}${NC}"
+        echo -e "  ${WHITE}Expiry:${NC}    ${YELLOW}${exp}${NC} (${days} days)"
+        echo ""
+        ui_section "Authenticated Proxy Endpoints"
+        echo -e "  ${WHITE}HTTP Proxy (Port 80):${NC}    ${CYAN}http://${user}:${pass}@${host}:80${NC}"
+        echo -e "  ${WHITE}SOCKS5 Proxy (Port 1080):${NC} ${CYAN}socks5://${user}:${pass}@${host}:1080${NC}"
+        echo ""
+        ui_section "Unauthenticated Endpoints"
+        echo -e "  ${WHITE}HTTP Open (Port 8080):${NC}   ${CYAN}http://${host}:8080${NC}"
+        echo -e "  ${WHITE}SOCKS5 Open (Port 1081):${NC} ${CYAN}socks5://${host}:1081${NC}"
+        echo ""
+    else
+        echo -e "\n  ${RED}Failed to create account:${NC} $res"
+    fi
     ui_wait_key
 }
 
-del_l2tp() {
+# ── 2) List All Proxy Users ─────────────────────────────
+list_users() {
     clear
-    ui_header "Delete L2TP User"
+    ui_header "Proxy Users List" "Proxy › List"
+
+    local out
+    out=$($HELPER list_formatted 2>/dev/null)
+
+    if [[ "$out" == "EMPTY" || -z "$out" ]]; then
+        echo -e "  ${YELLOW}No registered proxy users found.${NC}"
+        echo ""
+        ui_wait_key
+        return
+    fi
+
+    printf "  %-14s %-14s %-12s %-10s %s\n" "Username" "Password" "Expiry" "Remaining" "Status"
+    echo  "  $(printf '%.s─' {1..62})"
+
+    while IFS='|' read -r u p exp status days created; do
+        [[ -z "$u" ]] && continue
+        local status_color="${GREEN}Active${NC}"
+        if [[ "$status" == "Expired" ]]; then
+            status_color="${RED}Expired${NC}"
+            days="0"
+        fi
+        local days_display="${days}d"
+        [[ "$days" == "-" ]] && days_display="never"
+        printf "  %-14s %-14s %-12s %-10s %b\n" "$u" "$p" "$exp" "$days_display" "$status_color"
+    done <<< "$out"
+
+    echo ""
+    ui_wait_key
+}
+
+# ── 3) Renew User Account ───────────────────────────────
+renew_user() {
+    clear
+    ui_header "Renew Proxy User" "Proxy › Renew"
+
+    read -p "  Username to renew: " user
+    [[ -z "$user" ]] && return
+
+    if ! $HELPER exists "$user" >/dev/null 2>&1; then
+        echo -e "\n  ${RED}Error: User '$user' not found.${NC}"
+        ui_wait_key
+        return
+    fi
+
+    local current_info
+    current_info=$($HELPER get "$user" 2>/dev/null)
+    local cur_exp=$(echo "$current_info" | jq -r '.exp // "unknown"' 2>/dev/null || echo "unknown")
+    echo -e "  Current Expiry: ${YELLOW}${cur_exp}${NC}"
+
+    local days=""
+    while true; do
+        read -p "  Add Days [default: 30]: " days
+        [[ -z "$days" ]] && days=30
+        if [[ "$days" =~ ^[0-9]+$ ]] && [[ "$days" -gt 0 ]]; then
+            break
+        fi
+        echo -e "  ${RED}Error: Please enter a valid positive number.${NC}"
+    done
+
+    local res
+    res=$($HELPER renew "$user" "$days")
+    if [[ $? -eq 0 && "$res" =~ ^SUCCESS: ]]; then
+        local old_e=$(echo "$res" | cut -d: -f3)
+        local new_e=$(echo "$res" | cut -d: -f4)
+        echo -e "\n  ${GREEN}✔ User '$user' successfully renewed!${NC}"
+        echo -e "  Expiry updated: ${WHITE}${old_e}${NC} → ${YELLOW}${new_e}${NC} (+${days} days)"
+    else
+        echo -e "\n  ${RED}Failed to renew:${NC} $res"
+    fi
+    ui_wait_key
+}
+
+# ── 4) Delete User Account ──────────────────────────────
+del_user() {
+    clear
+    ui_header "Delete Proxy User" "Proxy › Delete"
+
     read -p "  Username to delete: " user
     [[ -z "$user" ]] && return
-    read -p "  Delete '$user'? [y/N]: " c
-    [[ "$c" != "y" ]] && return
-    sed -i "/^\"$user\" l2tpd/d" /etc/ppp/chap-secrets 2>/dev/null
-    sed -i "/^$user:\$1\$/d" /etc/ipsec.d/passwd 2>/dev/null
-    sed -i "/^### $user/d" /etc/funny/.l2tp 2>/dev/null
-    [[ -f "$USERS_FILE" ]] && {
-        t="${USERS_FILE}.tmp.$$"
-        jq --arg u "$user" '.l2tp |= map(select(.user != $u))' "$USERS_FILE" > "$t"
-        mv "$t" "$USERS_FILE"
-        chmod 600 "$USERS_FILE"
-        source /usr/lib/kurovpn/subscription.sh 2>/dev/null || true
-        sub_build_user "$user" 2>/dev/null || true
-        rm -f "/var/www/html/sub/$user" "/var/www/html/sub/$user.txt" 2>/dev/null || true
-    }
-    chmod 600 /etc/ppp/chap-secrets /etc/ipsec.d/passwd 2>/dev/null
-    echo "  Deleted: $user"
+
+    # Check if user actually exists before asking for confirmation
+    if ! $HELPER exists "$user" >/dev/null 2>&1; then
+        echo -e "\n  ${RED}Error: User '$user' not found.${NC}"
+        ui_wait_key
+        return
+    fi
+
+    read -p "  Delete user '$user'? [y/N]: " confirm
+    [[ "$confirm" != "y" && "$confirm" != "Y" ]] && { echo "  Operation aborted."; ui_wait_key; return; }
+
+    local res
+    res=$($HELPER del "$user")
+    if [[ $? -eq 0 && "$res" =~ ^SUCCESS: ]]; then
+        systemctl restart xray 2>/dev/null || true
+        sleep 1
+        echo -e "\n  ${GREEN}✔ User '$user' deleted successfully.${NC}"
+    else
+        echo -e "\n  ${RED}Failed to delete user:${NC} $res"
+    fi
     ui_wait_key
 }
 
-renew_l2tp() {
+# ── 5) Change User Password ─────────────────────────────
+change_password() {
     clear
-    ui_header "Renew L2TP User"
+    ui_header "Change User Password" "Proxy › Password"
+
     read -p "  Username: " user
-    read -p "  Add days: " days
-    [[ ! "$days" =~ ^[0-9]+$ ]] && { echo "  Invalid"; read -n1; return; }
-    local old=$(grep "^### $user " /etc/funny/.l2tp | awk '{print $3}')
-    [[ -z "$old" ]] && { echo "  Not found"; read -n1; return; }
-    local new=$(date -d "$old + $days days" +%Y-%m-%d)
-    sed -i "s/^### $user .*/### $user $new/" /etc/funny/.l2tp
-    echo "  Renewed: $user → $new"
+    [[ -z "$user" ]] && return
+
+    if ! $HELPER exists "$user" >/dev/null 2>&1; then
+        echo -e "\n  ${RED}Error: User '$user' not found.${NC}"
+        ui_wait_key
+        return
+    fi
+
+    read -p "  New Password: " new_pass
+    [[ -z "$new_pass" ]] && { echo "  Password cannot be empty."; ui_wait_key; return; }
+
+    local res
+    res=$($HELPER change "$user" "$new_pass")
+    if [[ $? -eq 0 && "$res" =~ ^SUCCESS: ]]; then
+        systemctl restart xray 2>/dev/null || true
+        sleep 1
+        echo -e "\n  ${GREEN}✔ Password updated for '$user'!${NC}"
+    else
+        echo -e "\n  ${RED}Failed to change password:${NC} $res"
+    fi
     ui_wait_key
 }
 
+# ── 6) Service & Port Status ────────────────────────────
+show_status() {
+    clear
+    ui_header "Proxy Service Status" "Proxy › Status"
+
+    ui_section "Xray Core Daemon"
+    if systemctl is-active --quiet xray; then
+        ui_kv "Service" "${GREEN}Active (Running)${NC}"
+    else
+        ui_kv "Service" "${RED}Inactive (Stopped)${NC}"
+    fi
+    echo ""
+
+    ui_section "Proxy Ports"
+    _proxy_port_status 80   "HTTP Proxy (Auth Required)"
+    _proxy_port_status 8080 "HTTP Proxy (No Auth)"
+    _proxy_port_status 1080 "SOCKS5 Proxy (Auth Required)"
+    _proxy_port_status 1081 "SOCKS5 Proxy (No Auth)"
+    echo ""
+
+    ui_section "Account Summary"
+    local total_proxy
+    total_proxy=$(jq '.proxy | length' /etc/kurovpn/users.json 2>/dev/null || echo 0)
+    ui_kv "Registered Proxy Accounts" "$total_proxy"
+    echo ""
+    ui_wait_key
+}
+
+# ── 7) Connection Info ──────────────────────────────────
+show_config() {
+    clear
+    ui_header "Proxy Connection Info" "Proxy › Guide"
+    local domain=$(cat /etc/xray/domain 2>/dev/null || echo "")
+    local myip=$(curl -s --connect-timeout 2 ipinfo.io/ip 2>/dev/null || curl -s ifconfig.me || echo "68.211.88.80")
+    local host="${domain:-$myip}"
+
+    ui_section "Authenticated Proxies"
+    echo -e "  ${WHITE}HTTP Proxy (Port 80):${NC}"
+    echo -e "    ${CYAN}http://<username>:<password>@${host}:80${NC}"
+    echo ""
+    echo -e "  ${WHITE}SOCKS5 Proxy (Port 1080):${NC}"
+    echo -e "    ${CYAN}socks5://<username>:<password>@${host}:1080${NC}"
+    echo ""
+
+    ui_section "Open / Unauthenticated Proxies"
+    echo -e "  ${WHITE}HTTP Open (Port 8080):${NC}"
+    echo -e "    ${CYAN}http://${host}:8080${NC}"
+    echo ""
+    echo -e "  ${WHITE}SOCKS5 Open (Port 1081):${NC}"
+    echo -e "    ${CYAN}socks5://${host}:1081${NC}"
+    echo ""
+
+    ui_section "Android Setup"
+    echo -e "  WiFi Settings → Select Network → Advanced / Proxy → Manual"
+    echo -e "  Proxy Hostname: ${CYAN}${host}${NC}"
+    echo -e "  Proxy Port:     ${CYAN}80${NC} (or 8080 for open)"
+    echo ""
+
+    ui_section "CLI Quick Test"
+    echo -e "  curl -x http://user:pass@${host}:80 https://api.ipify.org"
+    echo -e "  curl -x socks5h://user:pass@${host}:1080 https://api.ipify.org"
+    echo ""
+    ui_wait_key
+}
+
+# ── 8) Restart Proxy ────────────────────────────────────
+restart_proxy() {
+    clear
+    ui_header "Restart Proxy" "Proxy › Restart"
+    echo "  Restarting Xray service..."
+    systemctl restart xray
+    sleep 1
+    if systemctl is-active --quiet xray; then
+        echo -e "  ${GREEN}✔ Xray restarted successfully.${NC}"
+    else
+        echo -e "  ${RED}✘ Failed to restart Xray.${NC}"
+    fi
+    ui_wait_key
+}
+
+# ── Main Menu Loop ──────────────────────────────────────
 while true; do
-clear
-ui_header "L2TP/IPsec Manager" "Main › L2TP"
+    clear
+    ui_header "HTTP & SOCKS5 Proxy" "Main › Proxy"
 
-ui_item 1 "Create Account"
-ui_item 2 "List Users"
-ui_item 3 "Delete User"
-ui_item 4 "Renew User"
+    ui_card_begin "Proxy Account Management"
+    _card_row "${GREEN} 1)${NC} Create Proxy Account"
+    _card_row "${GREEN} 2)${NC} List All Proxy Users"
+    _card_row "${GREEN} 3)${NC} Renew User Account"
+    _card_row "${GREEN} 4)${NC} Delete User Account"
+    _card_row "${GREEN} 5)${NC} Change User Password"
+    ui_card_end
 
-echo ""
-ui_footer
-read -p "  Select: " opt
-case "$opt" in
-    1) add-l2tp ;;
-    2) list_l2tp ;;
-    3) del_l2tp ;;
-    4) renew_l2tp ;;
-    X|x) exit 0 ;;
-esac
+    ui_card_begin "System & Connection"
+    _card_row "${GREEN} 6)${NC} Service & Port Status"
+    _card_row "${GREEN} 7)${NC} Connection Info & Setup Guide"
+    _card_row "${GREEN} 8)${NC} Restart Proxy (Xray)"
+    ui_card_end
+
+    ui_footer
+    read -p "  Select Option [1-8]: " opt
+    case "$opt" in
+        1) add_user ;;
+        2) list_users ;;
+        3) renew_user ;;
+        4) del_user ;;
+        5) change_password ;;
+        6) show_status ;;
+        7) show_config ;;
+        8) restart_proxy ;;
+        X|x) exit 0 ;;
+        *) ;;
+    esac
 done

@@ -38,7 +38,7 @@ case "$opt" in
         systemctl restart ssh.socket 2>/dev/null || systemctl restart sshd 2>/dev/null || systemctl restart ssh 2>/dev/null
         systemctl restart hysteria 2>/dev/null
         systemctl restart wg-quick@wg0 2>/dev/null
-        systemctl restart xl2tpd ipsec 2>/dev/null
+        
         systemctl restart edu badvpn 2>/dev/null
         echo "  All services restarted."
         sleep 1

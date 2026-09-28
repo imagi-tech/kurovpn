@@ -15,7 +15,7 @@
 #    "ss2022": [],
 #    "hysteria2": [],
 #    "ssh": [],
-#    "l2tp": [],
+#    "proxy": [],
 #    "wireguard": [],
 #    "noobzvpns": []
 #  }
@@ -37,7 +37,7 @@ init_users_db() {
   "ss2022": [],
   "hysteria2": [],
   "ssh": [],
-  "l2tp": [],
+  "proxy": [],
   "wireguard": [],
   "noobzvpns": []
 }
@@ -48,7 +48,7 @@ EOF
 }
 
 # ── Add a user entry ───────────────────────────────────
-# $1: protocol (vmess|vless|trojan|shadowsocks|ssh|l2tp|wireguard|noobzvpns)
+# $1: protocol (vmess|vless|trojan|shadowsocks|ssh|proxy|wireguard|noobzvpns)
 # $2: username
 # $3: expiry date (YYYY-MM-DD)
 # $4: extra JSON fields (e.g. '"uuid":"abc-123","email":"bob"')

@@ -18,10 +18,6 @@ cp -r /etc/hysteria "$TMP_DIR/" 2>/dev/null
 cp -r /etc/funny "$TMP_DIR/" 2>/dev/null
 cp -r /etc/noobzvpns "$TMP_DIR/" 2>/dev/null
 cp -r /etc/wireguard "$TMP_DIR/" 2>/dev/null
-cp /etc/ppp/chap-secrets "$TMP_DIR/" 2>/dev/null
-cp /etc/ipsec.d/passwd "$TMP_DIR/passwd-ipsec" 2>/dev/null
-cp /etc/ipsec.conf "$TMP_DIR/" 2>/dev/null
-cp /etc/ipsec.secrets "$TMP_DIR/" 2>/dev/null
 cp /etc/nginx/nginx.conf "$TMP_DIR/" 2>/dev/null
 
 # Create archive

@@ -38,7 +38,6 @@ source "$SCRIPT_DIR/modules/nginx.sh"
 source "$SCRIPT_DIR/modules/xray.sh"
 source "$SCRIPT_DIR/modules/hysteria2.sh"
 source "$SCRIPT_DIR/modules/wireguard.sh"
-source "$SCRIPT_DIR/modules/l2tp.sh"
 source "$SCRIPT_DIR/modules/noobzvpns.sh"
 source "$SCRIPT_DIR/modules/badvpn.sh"
 
@@ -52,8 +51,6 @@ verify_install() {
         "dropbear"
         "ssh" "sshd"
         "wg-quick@wg0"
-        "xl2tpd"
-        "ipsec"
         "noobzvpns"
         "badvpn"
         "hysteria"
@@ -103,7 +100,7 @@ install_commands() {
     local cmd_list=(
         "menu" "menu-ssh" "menu-xray" "menu-hy2" "menu-set"
         "Menu-WGF" "nmenu" "lmenu" "bmenu" "botmenu" "dm-menu"
-        "addssh" "add-l2tp" "add-ssws" "add-trojan" "add-vless" "add-vmess"
+        "addssh" "add-ssws" "add-trojan" "add-vless" "add-vmess"
         "add-reality" "add-ss2022" "add-hysteria2"
         "backup" "xp" "bbr" "sub" "kurovpn-verify" "kurovpn-update"
     )
@@ -118,10 +115,11 @@ install_commands() {
     done
 
     # Install all library files
-    for lib in "$SCRIPT_DIR"/lib/*.sh; do
+    for lib in "$SCRIPT_DIR"/lib/*.sh "$SCRIPT_DIR"/lib/*.py; do
         [[ -f "$lib" ]] && cp "$lib" "/usr/lib/kurovpn/"
     done
     chmod 644 /usr/lib/kurovpn/*.sh 2>/dev/null || true
+    chmod 755 /usr/lib/kurovpn/*.py 2>/dev/null || true
 
     # Install BBR module library
     if [[ -f "$SCRIPT_DIR/modules/bbr.sh" ]]; then
@@ -199,23 +197,20 @@ main() {
     # 8. WireGuard
     install_wireguard
 
-    # 9. L2TP/IPsec + PPTP (optional legacy protocol)
-    install_l2tp || log_warn "L2TP/IPsec setup encountered warnings (skipping)"
-
-    # 10. NoobZVPNS (optional)
+    # 9. NoobZVPNS (optional)
     install_noobzvpns || log_warn "NoobZVPNS setup encountered warnings (skipping)"
 
-    # 11. BadVPN (optional UDP gateway)
+    # 10. BadVPN (optional UDP gateway)
     install_badvpn || log_warn "BadVPN setup encountered warnings (skipping)"
 
-    # 12. Cron + iptables persistence
+    # 11. Cron + iptables persistence
     setup_cron
     save_iptables
 
-    # 13. Final verification
+    # 12. Final verification
     verify_install
 
-    # 14. Summary
+    # 13. Summary
     show_summary "$domain"
 }
 

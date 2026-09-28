@@ -47,10 +47,11 @@ fi
 
 echo -e "  ${YELLOW}› Updating management libraries in /usr/lib/kurovpn/...${NC}"
 mkdir -p /usr/lib/kurovpn
-for lib in "$SRC_DIR"/lib/*.sh; do
+for lib in "$SRC_DIR"/lib/*.sh "$SRC_DIR"/lib/*.py; do
     [[ -f "$lib" ]] && cp "$lib" /usr/lib/kurovpn/
 done
 chmod 644 /usr/lib/kurovpn/*.sh 2>/dev/null || true
+chmod 755 /usr/lib/kurovpn/*.py 2>/dev/null || true
 
 # Update BBR library if present
 if [[ -f "$SRC_DIR/modules/bbr.sh" ]]; then

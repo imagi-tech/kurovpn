@@ -1,7 +1,28 @@
 {
-  "log" : {
+  "log": {
     "access": "/var/log/xray/access.log",
     "loglevel": "info"
+  },
+  "api": {
+    "services": [
+      "StatsService"
+    ],
+    "tag": "api"
+  },
+  "stats": {},
+  "policy": {
+    "levels": {
+      "0": {
+        "statsUserDownlink": true,
+        "statsUserUplink": true
+      }
+    },
+    "system": {
+      "statsInboundUplink": true,
+      "statsInboundDownlink": true,
+      "statsOutboundUplink": true,
+      "statsOutboundDownlink": true
+    }
   },
   "inbounds": [
     {
@@ -14,38 +35,34 @@
       "tag": "api"
     },
     {
-         "listen": "127.0.0.1",
-        "port": "10004",
-        "protocol": "shadowsocks",
-        "settings": {
-           "clients": [
-           {
-           "method": "aes-128-gcm",
-          "password": "1d1c1d94-6987-4658-a4dc-8821a30fe7e0"
-#ssws
-           }
-          ],
-          "network": "tcp,udp"
-       },
-       "streamSettings":{
-          "network": "ws",
-             "wsSettings": {
-               "path": "/ssws"
-           }
+      "listen": "127.0.0.1",
+      "port": 10004,
+      "protocol": "shadowsocks",
+      "settings": {
+        "method": "aes-128-gcm",
+        "clients": [
+          {
+            "password": "xG0SqErAcF+bcA5rYx3Bog==",
+            "method": "aes-128-gcm",
+            "email": "test1"
+          }
+        ],
+        "network": "tcp,udp"
+      },
+      "streamSettings": {
+        "network": "ws",
+        "wsSettings": {
+          "path": "/ssws"
         }
-     },
+      }
+    },
     {
       "listen": "127.0.0.1",
       "port": 14016,
       "protocol": "vless",
       "settings": {
         "decryption": "none",
-        "clients": [
-          {
-            "id": "cfbbaafc-8d52-450c-9fb0-145bc8221e6d"
-#vless
-          }
-        ]
+        "clients": []
       },
       "streamSettings": {
         "network": "ws",
@@ -56,74 +73,14 @@
     },
     {
       "listen": "127.0.0.1",
-      "port": 977,
-      "protocol": "vmess",
-      "settings": {
-        "clients": [
-          {
-            "id": "rerechan-store",
-            "alterId": 0
-#vmess
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "ws",
-        "wsSettings": {
-          "path": "/"
-        }
-      }
-    },
-    {
-      "listen": "127.0.0.1",
-      "port": 95,
-      "protocol": "vmess",
-      "settings": {
-        "clients": [
-          {
-            "id": "rerechan-store",
-            "alterId": 0
-#vmess
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "ws",
-        "wsSettings": {
-          "path": "/worryfree"
-        }
-      }
-    },
-    {
-      "listen": "127.0.0.1",
-      "port": 96,
-      "protocol": "vmess",
-      "settings": {
-        "clients": [
-          {
-            "id": "rerechan-store",
-            "alterId": 0
-#vmess
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "ws",
-        "wsSettings": {
-          "path": "/kuota-habis"
-        }
-      }
-    },
-    {
-      "listen": "127.0.0.1",
       "port": 23456,
       "protocol": "vmess",
       "settings": {
         "clients": [
           {
-            "id": "cfbbaafc-8d52-450c-9fb0-145bc8221e6d",
-            "alterId": 0
-#vmess
+            "id": "7bfbaf9f-dea6-495e-aeec-a96f3447e21f",
+            "alterId": 0,
+            "email": "git"
           }
         ]
       },
@@ -140,12 +97,7 @@
       "protocol": "trojan",
       "settings": {
         "decryption": "none",
-        "clients": [
-          {
-            "password": "rerechan-store"
-#trojan
-          }
-        ],
+        "clients": [],
         "udp": true
       },
       "streamSettings": {
@@ -161,12 +113,7 @@
       "protocol": "vless",
       "settings": {
         "decryption": "none",
-        "clients": [
-          {
-            "id": "cfbbaafc-8d52-450c-9fb0-145bc8221e6d"
-#vless
-          }
-        ]
+        "clients": []
       },
       "streamSettings": {
         "network": "grpc",
@@ -182,9 +129,9 @@
       "settings": {
         "clients": [
           {
-            "id": "cfbbaafc-8d52-450c-9fb0-145bc8221e6d",
-            "alterId": 0
-#vmess
+            "id": "7bfbaf9f-dea6-495e-aeec-a96f3447e21f",
+            "alterId": 0,
+            "email": "git"
           }
         ]
       },
@@ -201,12 +148,8 @@
       "protocol": "trojan",
       "settings": {
         "decryption": "none",
-        "clients": [
-          {
-            "password": "cfbbaafc-8d52-450c-9fb0-145bc8221e6d"
-#trojan
-          }
-        ]
+        "clients": [],
+        "udp": true
       },
       "streamSettings": {
         "network": "grpc",
@@ -222,8 +165,9 @@
       "settings": {
         "clients": [
           {
-            "id": "nonescript-fn-project"
-#vmess
+            "id": "7bfbaf9f-dea6-495e-aeec-a96f3447e21f",
+            "alterId": 0,
+            "email": "git"
           }
         ],
         "decryption": "none"
@@ -248,12 +192,7 @@
       "port": 8002,
       "protocol": "trojan",
       "settings": {
-        "clients": [
-          {
-            "id": "nonescript-fn-project"
-#trojan
-          }
-        ],
+        "clients": [],
         "decryption": "none"
       },
       "streamSettings": {
@@ -276,12 +215,7 @@
       "port": 8003,
       "protocol": "vless",
       "settings": {
-        "clients": [
-          {
-            "id": "nonescript-fn-project"
-#vless
-          }
-        ],
+        "clients": [],
         "decryption": "none"
       },
       "streamSettings": {
@@ -296,6 +230,148 @@
           "http",
           "tls",
           "quic"
+        ]
+      }
+    },
+    {
+      "listen": "0.0.0.0",
+      "port": 8443,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "9356e3f6-2346-445d-b294-a2525bbf0b86",
+            "flow": "xtls-rprx-vision",
+            "email": "test3"
+          },
+          {
+            "id": "6bf6c235-19fc-496b-83e7-4f3a2dc6277c",
+            "flow": "xtls-rprx-vision",
+            "email": "lbbbbb"
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "show": false,
+          "dest": "vpn.example.com:443",
+          "xver": 0,
+          "serverNames": [
+            "vpn.example.com"
+          ],
+          "privateKey": "GENERATED_REALITY_PRIVATE_KEY",
+          "shortIds": [
+            "GENERATED_SHORT_ID"
+          ]
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    },
+    {
+      "listen": "0.0.0.0",
+      "port": 10010,
+      "protocol": "shadowsocks",
+      "settings": {
+        "method": "aes-128-gcm",
+        "clients": [],
+        "network": "tcp,udp"
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    },
+    {
+      "tag": "http-proxy-in",
+      "port": 80,
+      "listen": "0.0.0.0",
+      "protocol": "http",
+      "settings": {
+        "timeout": 300,
+        "allowTransparent": false,
+        "accounts": [
+          {
+            "user": "kuro",
+            "pass": "kuro2024"
+          }
+        ]
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    },
+    {
+      "tag": "socks-proxy-in",
+      "port": 1080,
+      "listen": "0.0.0.0",
+      "protocol": "socks",
+      "settings": {
+        "auth": "password",
+        "udp": true,
+        "ip": "0.0.0.0",
+        "accounts": [
+          {
+            "user": "kuro",
+            "pass": "kuro2024"
+          }
+        ]
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    },
+    {
+      "tag": "http-proxy-noauth-in",
+      "port": 8080,
+      "listen": "0.0.0.0",
+      "protocol": "http",
+      "settings": {
+        "timeout": 300,
+        "allowTransparent": false
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
+        ]
+      }
+    },
+    {
+      "tag": "socks-proxy-noauth-in",
+      "port": 1081,
+      "listen": "0.0.0.0",
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth",
+        "udp": true,
+        "ip": "0.0.0.0"
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": [
+          "http",
+          "tls"
         ]
       }
     }
@@ -346,145 +422,17 @@
         "protocol": [
           "bittorrent"
         ]
+      },
+      {
+        "type": "field",
+        "inboundTag": [
+          "http-proxy-in",
+          "socks-proxy-in",
+          "http-proxy-noauth-in",
+          "socks-proxy-noauth-in"
+        ],
+        "outboundTag": "direct"
       }
     ]
-  },
-  "stats": {},
-  "api": {
-    "services": [
-      "StatsService"
-    ],
-    "tag": "api"
-  },
-  "policy": {
-    "levels": {
-      "0": {
-        "statsUserDownlink": true,
-        "statsUserUplink": true
-      }
-    },
-    "system": {
-      "statsInboundUplink": true,
-      "statsInboundDownlink": true,
-      "statsOutboundUplink" : true,
-      "statsOutboundDownlink" : true
-    }
   }
-}
-{
-  "outbounds": [
-    {
-      "protocol": "dns",
-      "tag": "dns-out"
-    },
-    {
-      "streamSettings": {
-        "sockopt": {
-          "mark": 255
-        }
-      },
-      "settings": {
-        "domainStrategy": "UseIPv4"
-      },
-      "protocol": "freedom",
-      "tag": "direct"
-    },
-    {
-      "protocol": "blackhole",
-      "tag": "blackhole"
-    },
-    {
-      "settings": {
-        "servers": [
-          {
-            "port": 10000,
-            "address": "127.0.0.1"
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "none"
-      },
-      "protocol": "socks",
-      "tag": "out"
-    }
-  ],
-  "log": {
-    "loglevel": "warning"
-  },
-  "dns": {
-    "hosts": {
-      "dns.tiarap": "174.138.21.128",
-      "dns.1host": "76.76.2.38",
-      "geosite:category-ads-all": "127.0.0.1"
-    },
-    "servers": [
-      {
-        "address": "https://doh.tiarap.org/dns-query",
-        "domains": ["geosite:geolocation-!cn"],
-        "expectIPs": ["geoip:!cn"]
-      },
-      "174.138.21.128",
-      {
-        "address": "174.138.21.128",
-        "port": 53,
-        "domains": ["geosite:id", "geosite:category-games@id"],
-        "expectIPs": ["geoip:id"],
-        "skipFallback": true
-      },
-      {
-        "address": "localhost",
-        "skipFallback": true
-      }
-    ]
-  },
-  "routing": {
-    "rules": [
-      {
-        "type": "field",
-        "outboundTag": "Reject",
-        "domain": ["geosite:category-ads-all"]
-      },
-      {
-        "type": "field",
-        "outboundTag": "Direct",
-        "domain": [
-          "geosite:private",
-          "geosite:apple-id",
-          "geosite:google-id",
-          "geosite:tld-id",
-          "geosite:category-games@id"
-        ]
-      },
-      {
-        "type": "field",
-        "outboundTag": "Proxy",
-        "domain": ["geosite:geolocation-!cn"]
-      },
-      {
-        "type": "field",
-        "outboundTag": "Direct",
-        "domain": ["geosite:id"]
-      },
-      {
-        "type": "field",
-        "outboundTag": "Proxy",
-        "network": "tcp,udp"
-      }
-    ]
-  },
-  "inbounds": [
-    {
-      "port": 10000,
-      "protocol": "dokodemo-door",
-      "settings": {
-        "port": 53,
-        "network": "udp",
-        "address": "174.138.21.128"
-      },
-      "tag": "dns-in",
-      "listen": "127.0.0.1"
-    }
-  ]
 }

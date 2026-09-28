@@ -60,7 +60,7 @@ echo ""
 # ── Services Status Matrix ───────────────────
 ui_section "Active Services"
 echo -e "  $(ui_pill xray "Xray")   $(ui_pill nginx "Nginx")   $(ui_pill hysteria "Hysteria2")   $(ui_pill "wg-quick@wg0" "WireGuard")"
-echo -e "  $(ui_pill ssh "SSH")    $(ui_pill dropbear "Dropbear")   $(ui_pill xl2tpd "L2TP")   $(ui_pill "kurovpn-bot" "Bot")"
+echo -e "  $(ui_pill ssh "SSH")    $(ui_pill dropbear "Dropbear")   $(ui_pill xray "Proxy")   $(ui_pill "kurovpn-bot" "Bot")"
 echo ""
 
 # ── Account Summary ──────────────────────────
@@ -74,7 +74,7 @@ _card_row "${GREEN} 1)${NC} SSH & Dropbear          ${GREEN} 6)${NC} Subscriptio
 _card_row "${GREEN} 2)${NC} Xray Core Protocols     ${GREEN} 7)${NC} TCP BBR Booster"
 _card_row "${GREEN} 3)${NC} Hysteria 2 (QUIC)       ${GREEN} 8)${NC} Settings & Logs"
 _card_row "${GREEN} 4)${NC} WireGuard VPN           ${GREEN} 9)${NC} Bot & Backup"
-_card_row "${GREEN} 5)${NC} L2TP / IPsec VPN       ${GREEN}10)${NC} Domain & Cert"
+_card_row "${GREEN} 5)${NC} HTTP & SOCKS5 Proxy       ${GREEN}10)${NC} Domain & Cert"
 ui_card_end
 
 echo -e "  ${CYAN}U)${NC} Update KUROVPN   ${GREEN}V)${NC} Full Diagnostics   ${RED}X)${NC} Exit"

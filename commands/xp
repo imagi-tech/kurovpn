@@ -128,16 +128,8 @@ while IFS=: read username userexp; do
 done < /tmp/explist.$$
 rm -f /tmp/explist.$$
 
-# ── Process L2TP users ─────────────────────────────────
-if [[ -f /etc/funny/.l2tp ]]; then
-    grep '^###' /etc/funny/.l2tp | while read _ user exp; do
-        [[ "$exp" < "$NOW" ]] || continue
-        sed -i "/^\"$user\" l2tpd/d" /etc/ppp/chap-secrets 2>/dev/null
-        sed -i "/^$user:\$1\$/d" /etc/ipsec.d/passwd 2>/dev/null
-        sed -i "/^### $user $exp/d" /etc/funny/.l2tp 2>/dev/null
-        del_from_users "l2tp" "$user"
-    done
-fi
+# ── Process Proxy users ────────────────────────────────
+python3 /usr/lib/kurovpn/proxy_helper.py sweep >/dev/null 2>&1 || true
 
 # ── Process WireGuard users ────────────────────────────
 if [[ -f /etc/funny/.wg ]]; then
@@ -160,4 +152,4 @@ if [[ -f /etc/hysteria/config.yaml ]] && (systemctl is-active --quiet hysteria 2
     hy_regen 2>/dev/null || true
 fi
 
-chmod 600 /etc/ppp/chap-secrets /etc/ipsec.d/passwd "$USERS_FILE" 2>/dev/null
+chmod 600 "$USERS_FILE" 2>/dev/null

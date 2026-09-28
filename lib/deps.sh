@@ -96,7 +96,7 @@ create_dirs() {
     touch /var/log/xray/{access,error,akses}.log
     chmod +x /var/log/xray/*.log 2>/dev/null || true
 
-    touch /etc/funny/.l2tp /etc/funny/.noob /etc/funny/.wg
+    touch /etc/funny/.noob /etc/funny/.wg
     touch /etc/funny/limit/ssh/ip/syslog
     echo "9999999" > /etc/funny/limit/ssh/ip/syslog
 

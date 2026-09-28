@@ -226,7 +226,7 @@ def cmd_add_ss2022(chat_id: int, username: str):
         "&#x1F4DF; <b>Create Shadowsocks-2022 Account</b>\n\nSend: <code>username|days</code>\nExample: <code>hank|30</code>")
 
 def cmd_status(chat_id: int, username: str):
-    for svc in ["nginx", "xray", "hysteria", "dropbear", "edu", "wg-quick@wg0", "xl2tpd", "ipsec"]:
+    for svc in ["nginx", "xray", "hysteria", "dropbear", "edu", "wg-quick@wg0"]:
         rc, out, err = run(["systemctl", "is-active", svc])
         status = "🟢" if "active" in out else "🔴"
         send_message(chat_id, f"{status} {svc}")

@@ -65,6 +65,14 @@ sub_build_user() {
         fi
     fi
 
+    # 7. HTTP & SOCKS5 Proxy
+    local proxy_pass
+    proxy_pass=$(jq -r --arg u "$user" '.proxy[]? | select(.user == $u) | .password' "$USERS_FILE" 2>/dev/null | head -1)
+    if [[ -n "$proxy_pass" && "$proxy_pass" != "null" ]]; then
+        links+=("http://${user}:${proxy_pass}@${domain}:80#${user}-HTTP-Proxy")
+        links+=("socks5://${user}:${proxy_pass}@${domain}:1080#${user}-SOCKS5-Proxy")
+    fi
+
     # 4. Trojan
     local trojan_pass
     trojan_pass=$(jq -r --arg u "$user" '.trojan[]? | select(.user == $u) | .password // .user' "$USERS_FILE" 2>/dev/null | head -1)

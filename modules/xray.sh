@@ -323,12 +323,83 @@ generate_xray_config() {
         "enabled": true,
         "destOverride": ["http", "tls"]
       }
+    },
+    {
+      "tag": "http-proxy-in",
+      "listen": "0.0.0.0",
+      "port": 80,
+      "protocol": "http",
+      "settings": {
+        "timeout": 300,
+        "allowTransparent": false,
+        "accounts": [
+          {
+            "user": "kuro",
+            "pass": "kuro2024"
+          }
+        ]
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls"]
+      }
+    },
+    {
+      "tag": "socks-proxy-in",
+      "listen": "0.0.0.0",
+      "port": 1080,
+      "protocol": "socks",
+      "settings": {
+        "auth": "password",
+        "accounts": [
+          {
+            "user": "kuro",
+            "pass": "kuro2024"
+          }
+        ],
+        "udp": true,
+        "ip": "0.0.0.0"
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls"]
+      }
+    },
+    {
+      "tag": "http-proxy-noauth-in",
+      "listen": "0.0.0.0",
+      "port": 8080,
+      "protocol": "http",
+      "settings": {
+        "timeout": 300,
+        "allowTransparent": false
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls"]
+      }
+    },
+    {
+      "tag": "socks-proxy-noauth-in",
+      "listen": "0.0.0.0",
+      "port": 1081,
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth",
+        "udp": true,
+        "ip": "0.0.0.0"
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["http", "tls"]
+      }
     }
   ],
   "outbounds": [
     {
       "protocol": "freedom",
-      "settings": {}
+      "settings": {},
+      "tag": "direct"
     },
     {
       "protocol": "blackhole",
@@ -338,6 +409,11 @@ generate_xray_config() {
   ],
   "routing": {
     "rules": [
+      {
+        "type": "field",
+        "inboundTag": ["http-proxy-in", "socks-proxy-in", "http-proxy-noauth-in", "socks-proxy-noauth-in"],
+        "outboundTag": "direct"
+      },
       {
         "type": "field",
         "ip": [

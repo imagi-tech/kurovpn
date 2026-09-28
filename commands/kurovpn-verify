@@ -41,8 +41,8 @@ check "dropbear is running" systemctl is-active --quiet dropbear
 check "ssh is running"      'systemctl is-active --quiet ssh.socket 2>/dev/null || systemctl is-active --quiet ssh 2>/dev/null || systemctl is-active --quiet sshd'
 check_warn "edu WS proxy"   systemctl is-active --quiet edu
 check_warn "wg-quick@wg0"   systemctl is-active --quiet "wg-quick@wg0"
-check_warn "xl2tpd"         systemctl is-active --quiet xl2tpd
-check_warn "ipsec"          systemctl is-active --quiet ipsec
+check_warn "proxy helper"    'test -f /usr/lib/kurovpn/proxy_helper.py'
+check_warn "proxy ports"     'ss -tlnp 2>/dev/null | grep -q ":80.*xray" && ss -tlnp 2>/dev/null | grep -q ":1080.*xray"'
 check_warn "badvpn"         systemctl is-active --quiet badvpn
 check_warn "hysteria (443)"    'systemctl is-active --quiet hysteria 2>/dev/null || pgrep -f "/usr/bin/hysteria.*config\.yaml" >/dev/null 2>&1'
 check_warn "hysteria-dns (53)" 'systemctl is-active --quiet hysteria-dns 2>/dev/null || pgrep -f "/usr/bin/hysteria.*config-dns\.yaml" >/dev/null 2>&1'
@@ -63,7 +63,8 @@ echo ""
 
 echo -e "${YELLOW}[ Ports ]${NC}"
 check "port 443 (nginx)"    'ss -tlnp 2>/dev/null | grep -q ":443.*nginx"'
-check "port 80  (nginx)"    'ss -tlnp 2>/dev/null | grep -q ":80.*nginx"'
+check "port 80  (http proxy)" 'ss -tlnp 2>/dev/null | grep -q ":80.*xray"'
+check_warn "port 1080 (socks5)"    'ss -tlnp 2>/dev/null | grep -q ":1080.*xray"'
 check "port 22  (ssh)"      'ss -tlnp 2>/dev/null | grep -q ":22.*ssh"'
 check_warn "port 109 (dropbear)" 'ss -tlnp 2>/dev/null | grep -q ":109.*dropbear"'
 check_warn "port 7300 (badvpn)"  'ss -tlnp 2>/dev/null | grep -q ":7300"'

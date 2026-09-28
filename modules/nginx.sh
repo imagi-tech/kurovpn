@@ -107,8 +107,6 @@ http {
 
     # Main VPN server (multi-port, multi-protocol)
     server {
-        listen 80;
-        listen [::]:80;
         listen 2082;
         listen [::]:2082;
         listen 443 ssl http2 reuseport;
